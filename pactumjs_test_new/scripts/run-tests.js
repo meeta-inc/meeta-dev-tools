@@ -54,6 +54,8 @@ class TestRunner {
         options.noSlack = true;
       } else if (arg === '--no-gsheet') {
         options.noGsheet = true;
+      } else if (arg.startsWith('--concurrency=')) {
+        options.concurrency = parseInt(arg.split('=')[1]);
       }
     });
 
@@ -190,8 +192,8 @@ class TestRunner {
    * @returns {Promise<Array>} Test results
    */
   async executeTests(testCases, options = {}) {
-    const { dryRun = false } = options;
-    const concurrency = config.test.concurrency;
+    const { dryRun = false, concurrency } = options;
+    const finalConcurrency = concurrency || config.test.concurrency;
     
     if (dryRun) {
       logger.info(`DRY RUN: Would execute ${testCases.length} tests`);
@@ -203,7 +205,7 @@ class TestRunner {
       }));
     }
 
-    logger.info(`Executing ${testCases.length} tests with concurrency ${concurrency}`);
+    logger.info(`Executing ${testCases.length} tests with concurrency ${finalConcurrency}`);
 
     const results = [];
     const executing = [];
@@ -214,7 +216,7 @@ class TestRunner {
       executing.push(testPromise);
 
       // Wait for batch completion when reaching concurrency limit or end
-      if (executing.length >= concurrency || i === testCases.length - 1) {
+      if (executing.length >= finalConcurrency || i === testCases.length - 1) {
         const batchResults = await Promise.all(executing);
         results.push(...batchResults);
         executing.length = 0; // Clear array
@@ -284,9 +286,8 @@ class TestRunner {
       let sheetsUrl = null;
       if (!options.noGsheet) {
         try {
-          const targetRange = config.gsheet.range || 'Results!A1';
-          await this.sheetsService.uploadResults(results, targetRange);
-          sheetsUrl = `https://docs.google.com/spreadsheets/d/${config.gsheet.spreadsheetId}`;
+          const gsheetResult = await this.sheetsService.uploadResults(results, options.testType || 'Results');
+          sheetsUrl = gsheetResult.url || `https://docs.google.com/spreadsheets/d/${config.gsheet.spreadsheetId}`;
           logger.info('Results uploaded to Google Sheets', { url: sheetsUrl });
           
           // Add sheets URL to summary for Slack notification
@@ -401,6 +402,20 @@ class TestRunner {
 
       logger.info('Test execution completed', summary);
 
+      // Determine test type for sheet naming
+      let testType = 'Results';
+      if (filters.testId) {
+        testType = 'Single';
+      } else if (filters.grade) {
+        testType = `Grade_${filters.grade}`;
+      } else if (filters.category) {
+        testType = `Category_${filters.category.replace(/[^a-zA-Z0-9]/g, '_')}`;
+      } else {
+        testType = 'All';
+      }
+      
+      options.testType = testType;
+
       // Save results
       if (!options.dryRun) {
         await this.saveResults(results, summary, options);
@@ -409,6 +424,11 @@ class TestRunner {
       // Send summary notification
       if (!options.noSlack) {
         await this.slackService.sendTestSummary(summary);
+        
+        // Send detailed results for single tests
+        if (filters.testId && results.length === 1) {
+          await this.slackService.sendSingleTestDetails(results[0], summary);
+        }
       }
 
       // Exit with appropriate code

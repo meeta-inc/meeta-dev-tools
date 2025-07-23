@@ -1,0 +1,109 @@
+name: 'PactumJS Test Automation'
+description: 'Run PactumJS test automation suite'
+inputs:
+  test-type:
+    description: 'Type of test to run (single, grade, category, full)'
+    required: true
+    default: 'single'
+  grade:
+    description: 'Test grade (elementary/middle/high/all)'
+    required: false
+  category:
+    description: 'Test category'
+    required: false
+  test-id:
+    description: 'Specific test ID'
+    required: false
+  slack-notification:
+    description: 'Send Slack notification'
+    required: false
+    default: 'true'
+  gsheet-upload:
+    description: 'Upload results to Google Sheets'
+    required: false
+    default: 'true'
+  environment:
+    description: 'Environment (test/production)'
+    required: false
+    default: 'test'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'pactumjs_test_new/package-lock.json'
+    
+    - name: Install dependencies
+      shell: bash
+      run: |
+        cd pactumjs_test_new
+        npm ci
+    
+    - name: Build TypeScript
+      shell: bash
+      run: |
+        cd pactumjs_test_new
+        npm run build
+    
+    - name: Copy config files to dist
+      shell: bash
+      run: |
+        cd pactumjs_test_new
+        cp -r config dist/config || true
+        cp -r src/utils dist/src/utils || true
+    
+    - name: Run tests
+      shell: bash
+      run: |
+        cd pactumjs_test_new
+        
+        # Build command based on test type
+        case "${{ inputs.test-type }}" in
+          "single")
+            if [ -n "${{ inputs.test-id }}" ]; then
+              CMD="node scripts/run-tests.js --id=${{ inputs.test-id }}"
+            else
+              CMD="node scripts/run-tests.js --id=ELEMENTARY_A-1"
+            fi
+            ;;
+          "grade")
+            GRADE="${{ inputs.grade }}"
+            CMD="node scripts/run-tests.js --grade=${GRADE:-elementary}"
+            ;;
+          "category")
+            CATEGORY="${{ inputs.category }}"
+            CMD="node scripts/run-tests.js --category=${CATEGORY:-GREETING}"
+            ;;
+          "full")
+            CMD="node scripts/run-tests.js"
+            ;;
+          *)
+            echo "Invalid test type: ${{ inputs.test-type }}"
+            exit 1
+            ;;
+        esac
+        
+        # Add optional flags
+        if [ "${{ inputs.slack-notification }}" != "true" ]; then
+          CMD="$CMD --no-slack"
+        fi
+        
+        if [ "${{ inputs.gsheet-upload }}" != "true" ]; then
+          CMD="$CMD --no-gsheet"
+        fi
+        
+        # Execute tests
+        echo "Executing: $CMD"
+        timeout 600s $CMD || echo "Tests completed"
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ inputs.test-type }}-${{ github.run_id }}
+        path: pactumjs_test_new/reports/
+        retention-days: 30

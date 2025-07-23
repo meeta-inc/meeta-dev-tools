@@ -32,7 +32,8 @@ module.exports = {
   gsheet: {
     spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
     range: process.env.GOOGLE_SHEET_RANGE || 'Sheet1!A:Z',
-    serviceAccountPath: process.env.GOOGLE_SERVICE_ACCOUNT_PATH
+    serviceAccountPath: process.env.GOOGLE_SERVICE_ACCOUNT_PATH,
+    driveFolderId: process.env.GOOGLE_DRIVE_FOLDER_ID
   },
 
   // Slack Configuration
