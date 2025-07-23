@@ -1,0 +1,45 @@
+{
+  "name": "ai-navi-chat-test-automation",
+  "version": "2.0.0",
+  "description": "AI Navi Chat API Test Automation Tool with PactumJS",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node scripts/run-tests.js",
+    "test:grade": "node scripts/run-tests.js --grade",
+    "test:category": "node scripts/run-tests.js --category", 
+    "test:id": "node scripts/run-tests.js --id",
+    "upload": "node scripts/upload-to-gsheet.js",
+    "download": "node scripts/download-from-s3.js",
+    "report": "node scripts/generate-report.js",
+    "lint": "eslint src/**/*.js",
+    "start": "npm run upload && npm run test && npm run report"
+  },
+  "keywords": [
+    "api-testing",
+    "pactumjs", 
+    "automation",
+    "ai-navi",
+    "chat-api"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.511.0",
+    "@slack/webhook": "^7.0.5",
+    "csv-parse": "^5.6.0",
+    "csv-stringify": "^6.5.2",
+    "dotenv": "^16.4.1",
+    "googleapis": "^126.0.1",
+    "pactum": "^3.7.6",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0",
+    "dotenv-safe": "^8.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "MeetA Inc",
+  "license": "MIT"
+}
