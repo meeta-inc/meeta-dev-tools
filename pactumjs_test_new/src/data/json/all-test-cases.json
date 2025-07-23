@@ -4,7 +4,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "수업일정",
-    "message": "수업일정을 변경하고 싶어요",
+    "message": "授業のスケジュールを変更したいのですが",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -14,7 +14,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "변경가능한 시간은 언제입니까?",
+    "message": "変更可能な時間はいつですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -24,7 +24,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수요일 오전9시로 변경하고 싶습니다.",
+    "message": "水曜日の午前9時に変更したいです。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -34,7 +34,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "몸이 좋지 않아 병원에 다녀와야할거 같은데 늦을거 같아요",
+    "message": "体調が悪くて病院に行かないといけないので、遅れそうです",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -44,7 +44,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "오늘 컨디션이 좋지않아 결석해야 할 거 같아요",
+    "message": "今日は体調が良くないので、お休みしなければならないと思います",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -54,7 +54,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "오늘 컨디션이 좋지않아 결석해야 할 거 같아요",
+    "message": "今日は体調が良くないので、お休みしなければならないと思います",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -64,7 +64,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "오늘 집에 일이 있어서 결석해야 할 거 같아요",
+    "message": "今日は家に用事があって、お休みしなければならないと思います",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -74,7 +74,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "혹시 원격으로 수업을 들을 수 있습니까?",
+    "message": "もしかして、オンラインで授業を受けることはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -84,7 +84,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원을 그만두고 싶은데 별도의 신청을 해야되나요?",
+    "message": "塾を辞めたいのですが、別途手続きが必要ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -94,7 +94,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원을 그만두고 싶은데 언제까지 신청을 하면 되나요?",
+    "message": "塾を辞めたいのですが、いつまでに申請すればよいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -104,7 +104,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원을 그만두고 싶으면 전화로 신청해도 되나요?",
+    "message": "塾を辞めたい場合、電話で申請してもいいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -114,7 +114,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "이번달 말까지 학원을 다니고 그만두고 싶습니다. 탈퇴절차 안내 부탁드립니다.",
+    "message": "今月末まで塾に通って辞めたいです。退会手続きの案内をお願いします。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -124,7 +124,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원비가 매월 자동인출되고 있는데 이번달 말까지 수업을 듣고 탈퇴하고 싶으며자동인출도 중지해 주실것을 요청드립니다.",
+    "message": "授業料が毎月自動引き落としされているのですが、今月末まで授業を受けて退会したく、自動引き落としも停止していただくことをお願いします。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -134,7 +134,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "진학 학교가 결정되어 다음달까지 수업을 듣고 탈퇴하고 싶습니다.",
+    "message": "進学先の学校が決まったので、来月まで授業を受けて退会したいです。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -144,7 +144,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "입원을 하게 되었는데 수강을 중지했다가 나중에 다시 들을 수 있습니까?",
+    "message": "入院することになったのですが、受講を停止してから後でまた再開することはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -154,7 +154,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "다음주 수요일에 퇴원합니다. 수업은 목요일부터 들을 수 있습니다.",
+    "message": "来週の水曜日に退院します。授業は木曜日から受けることができます。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -164,7 +164,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "6월16일부터 다른 학원으로 전학을 가서 수업을 받을 수 있습니까?",
+    "message": "6月16日から他の塾に転校して授業を受けることはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -174,7 +174,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "네 다른지역으로 이사를 갑니다.",
+    "message": "はい、他の地域に引っ越しします。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -184,7 +184,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원비 입금방법을 안내해주세요",
+    "message": "授業料の入金方法を案内してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -194,7 +194,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "은행에서 송금해드려도 괜찮은가요?",
+    "message": "銀行から振込をしても大丈夫ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -204,7 +204,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "인터넷뱅킹으로 송금해도 되나요?",
+    "message": "インターネットバンキングで振込してもいいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -214,7 +214,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "매월 자동이체일은 언제인가요?",
+    "message": "毎月の自動振替日はいつですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -224,7 +224,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "자동이체일이 주말인 경우 언제 인출이 되나요?",
+    "message": "自動振替日が週末の場合、いつ引き落としされますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -234,7 +234,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원비는 선불제 입니까?",
+    "message": "授業料は前払い制ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -244,7 +244,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "이번달 학원비는 얼마입니까?",
+    "message": "今月の授業料はいくらですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -254,7 +254,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "다음달 학원비는 몇개월분을 내야 되나요?",
+    "message": "来月の授業料は何ヶ月分支払う必要がありますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -264,7 +264,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원비 영수증 발급방법을 안내해주세요",
+    "message": "授業料の領収書発行方法を案内してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -274,7 +274,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0002",
     "category": "general",
-    "message": "최근 3개월간의 학원비 영수증이 필요합니다.",
+    "message": "最近3ヶ月間の授業料の領収書が必要です。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -284,7 +284,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원비 자동이체 가능한 은행 안내해주세요",
+    "message": "授業料の自動振替が可能な銀行を案内してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -294,7 +294,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원수업은 어떻게 진행되는지 소개해주세요",
+    "message": "塾の授業はどのように進行されるか紹介してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -304,7 +304,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원 커리큘럼은 어떻게 되나요?",
+    "message": "塾のカリキュラムはどのようになっていますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -314,7 +314,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학원 커리큘럼은 어떻게 되나요?",
+    "message": "塾のカリキュラムはどのようになっていますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -324,7 +324,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "개설되어있는 수업안내 부탁드려요",
+    "message": "開設されている授業の案内をお願いします",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -334,7 +334,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "개설되어있는 수업안내 부탁드려요",
+    "message": "開設されている授業の案内をお願いします",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -344,7 +344,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수업에 따른 학원비 안내 부탁드려요",
+    "message": "授業に応じた授業料の案内をお願いします",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -354,7 +354,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "학교에서 퍼즐에 다니고 있지만 다른 교실에서 렙톤을 수강할 수 있습니까?",
+    "message": "学校でパズルに通っていますが、他の教室でレプトンを受講することはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -364,7 +364,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "□계좌이체 의뢰서는 직접 금융기관 창구에 제출해도 됩니까?",
+    "message": "口座振替依頼書は直接金融機関の窓口に提出してもよろしいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -374,7 +374,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "□계좌이체 의뢰서는 직접 금융기관 창구에 제출해도 됩니까?",
+    "message": "口座振替依頼書は直接金融機関の窓口に提出してもよろしいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -384,7 +384,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "□ 계좌이체 의뢰서를 제출하면 얼마나 인출이 시작됩니까?",
+    "message": "口座振替依頼書を提出すると、どのくらいで引き落としが開始されますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -394,7 +394,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "□ 은퇴 계좌를 변경하고 싶지만 가능합니까?",
+    "message": "引き落とし口座を変更したいのですが、可能ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -404,7 +404,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "□ 수업료의 지불이 늦어져, 집에 독촉장이 도착했지만 이미 지불은 하고 있다.",
+    "message": "授業料の支払いが遅れて、家に督促状が届きましたが、すでに支払いはしています。",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -414,7 +414,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "□삿포로 연성회에 다니고 있습니다만, 3.14의 체험은 받을 수 있습니까?",
+    "message": "札幌練成会に通っていますが、3.14の体験は受けることができますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -424,7 +424,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "사립중학에 ​​다니고 있습니다",
+    "message": "私立中学に通っています",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -434,7 +434,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "클레퍼스는 어떤 프로그램입니까?",
+    "message": "クレファスはどのようなプログラムですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -444,7 +444,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "클레퍼스는 일주일에 몇 번 갑니다?",
+    "message": "クレファスは週に何回通いますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -454,7 +454,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "클레퍼스는 일주일에 몇 번 갑니다?",
+    "message": "クレファスは週に何回通いますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -464,7 +464,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "렙톤은 어떤 프로그램입니까?",
+    "message": "レプトンはどのようなプログラムですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -474,7 +474,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "실제로는 네이티브의 선생님이 가르쳐 주는 수업입니까?",
+    "message": "実際にはネイティブの先生が教えてくれる授業ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -484,7 +484,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "퍼즐 도장은 어떤 프로그램입니까?",
+    "message": "パズル道場はどのようなプログラムですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -494,7 +494,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "제로는 어떤 수업입니까?",
+    "message": "ゼロはどのような授業ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -504,7 +504,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "교사는 몇 명의 학생을 가르치는가?",
+    "message": "先生は何名の生徒を指導していますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -514,7 +514,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "어떤 선생님이 가르치십니까?",
+    "message": "どのような先生が教えてくださいますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -524,7 +524,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "어떤 정기 시험 대책을 실시하고 있습니까?",
+    "message": "どのような定期試験対策を実施していますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -534,7 +534,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "1회의 수업은 몇 분인가요?또 수업의 추가는 할 수 있습니까?",
+    "message": "1回の授業は何分ですか？また、授業の追加はできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -544,7 +544,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수업 시간과 요일은 정해져 있습니까?",
+    "message": "授業時間と曜日は決まっていますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -554,7 +554,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수업 시간과 요일은 정해져 있습니까?",
+    "message": "授業時間と曜日は決まっていますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -564,7 +564,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "대체 수업을 할 수 있습니까?",
+    "message": "振替授業をすることはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -574,7 +574,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "대체 수업을 할 수 있습니까?",
+    "message": "振替授業をすることはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -584,7 +584,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "자습 스페이스는 있습니까?또 이용하는 경우는 유료입니까?",
+    "message": "自習スペースはありますか？また、利用する場合は有料ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -594,7 +594,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "모르는 부분의 질문 등은 할 수 있습니까?",
+    "message": "わからない部分の質問などはできますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -604,7 +604,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "공립 중학교와 사립 중학교에서는 수업 내용과 진도가 다릅니다만, 대응해 주나요?",
+    "message": "公立中学校と私立中学校では授業内容と進度が違いますが、対応していただけますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -614,7 +614,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수업에서 사용하는 교재는 스스로 준비합니까?",
+    "message": "授業で使用する教材は自分で準備しますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -624,7 +624,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "숙제가 많이 나오나요?",
+    "message": "宿題はたくさん出ますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -634,7 +634,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "성적이 별로 좋지 않지만 입회 테스트가 있습니까?",
+    "message": "成績があまり良くないのですが、入会テストはありますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -644,7 +644,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "성적이 별로 좋지 않지만 입회 테스트가 있습니까?",
+    "message": "成績があまり良くないのですが、入会テストはありますか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -654,7 +654,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수업료는 어떻게 지불해야 하나요?",
+    "message": "授業料はどのように支払えばよいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -664,7 +664,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수업료는 어떻게 지불해야 하나요?",
+    "message": "授業料はどのように支払えばよいですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -674,7 +674,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "연도 도중부터의 입회는 가능합니까?",
+    "message": "年度途中からの入会は可能ですか？",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -684,7 +684,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "저의 성적이 정리된 자료를 받아보고 싶어요",
+    "message": "私の成績がまとめられた資料をいただきたいです",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -694,7 +694,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "제 성적이 분석된 내용을 알고싶어요",
+    "message": "私の成績が分析された内容を知りたいです",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -704,7 +704,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "제가 등록한 학원에 대해 알고싶어요. 학원소개해 주세요",
+    "message": "私が登録した塾について知りたいです。塾の紹介をしてください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -714,7 +714,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "우리 학원에 개설된 강의를 알고싶어요",
+    "message": "私たちの塾に開設された講義を知りたいです",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -724,7 +724,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "영어수업을 듣고 싶은데 어떤강의가 있는지 알려주세요",
+    "message": "英語の授業を受けたいのですが、どのような講義があるか教えてください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -734,7 +734,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "제게 맞는 추천강의 안내해주세요",
+    "message": "私に合ったおすすめの講義を案内してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -744,7 +744,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수강신청방법을 안내해주세요",
+    "message": "受講申込方法を案内してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -754,7 +754,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "수강신청방법을 안내해주세요",
+    "message": "受講申込方法を案内してください",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"
@@ -764,7 +764,7 @@
     "userRole": "User_S",
     "userId": "Hyunse0001",
     "category": "general",
-    "message": "어떤수업을 들으면 좋을지 종합적으로 상담하고 싶어요. 안내해주세요",
+    "message": "どのような授業を受けるとよいか総合的に相談したいです。案内をお願いします",
     "grade": "elementary",
     "expectedBubbles": 3,
     "source": "csv"

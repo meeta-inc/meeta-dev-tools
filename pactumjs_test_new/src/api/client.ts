@@ -1,4 +1,5 @@
 import * as pactum from 'pactum';
+import * as path from 'path';
 import { Config } from '../types/api';
 import { 
   ChatRequest, 
@@ -10,8 +11,8 @@ import {
   BubbleType 
 } from '../types/api';
 
-const config: Config = require('../../config/default');
-const logger = require('../utils/logger');
+const config: Config = require(path.join(__dirname, '../../config/default'));
+const logger = require(path.join(__dirname, '../utils/logger'));
 
 /**
  * AI Navi Chat API 클라이언트 (TypeScript 버전)
@@ -70,9 +71,12 @@ export class AINaviChatClient {
           attempt
         });
 
+        // API 응답 형식 처리 (response 필드가 있는 경우)
+        const responseBody = response.body?.response || response.body;
+        
         return {
           statusCode: response.statusCode,
-          body: response.body as ChatResponse,
+          body: responseBody as ChatResponse,
           responseTime,
           success: true
         };

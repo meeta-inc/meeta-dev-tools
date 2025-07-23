@@ -1,263 +1,298 @@
 # AI Navi Chat API Test Automation
 
-PactumJS 기반의 AI Navi Chat API 테스트 자동화 도구입니다.
+AI Navi Chat API의 자동화된 테스트 도구입니다. PactumJS를 기반으로 구축되었으며, TypeScript로 작성되었습니다.
 
 ## 🚀 주요 기능
 
-- **다양한 테스트 소스**: CSV, Excel, Google Sheets에서 테스트 케이스 로드
-- **학년별 테스트**: preschool, elementary, middle, high 학년별 필터링
-- **병렬 실행**: 설정 가능한 동시성으로 테스트 성능 최적화
-- **자동 보고**: S3 업로드, Slack 알림, 구조화된 로깅
-- **응답 검증**: API 응답 형식 자동 검증
+- **API 테스트 자동화**: AI Navi Chat API 엔드포인트 테스트
+- **등급별 테스트**: 초등학교, 중학교, 고등학교 등급별 테스트 케이스
+- **성능 모니터링**: 실시간 성능 메트릭 수집 및 분석
+- **부하 테스트**: 동시성 및 처리량 테스트
+- **CI/CD 통합**: GitHub Actions를 통한 자동화된 테스트 실행
+- **다중 채널 알림**: Slack, 이메일, 웹훅을 통한 알림 시스템
+- **실시간 대시보드**: HTML 기반 모니터링 대시보드
 
 ## 📁 프로젝트 구조
 
 ```
 pactumjs_test_new/
 ├── src/
-│   ├── api/                  # API 클라이언트
-│   │   ├── client.js         # AI Navi Chat API 클라이언트
-│   │   └── Academy Management API-prd-1-oas30.json
-│   ├── data/                 # 테스트 데이터
-│   │   ├── csv/              # CSV 테스트 케이스
-│   │   ├── json/             # JSON 테스트 케이스
-│   │   └── test-case-loader.js
-│   ├── integrations/         # 외부 서비스 연동
-│   │   ├── gsheet/           # Google Sheets
-│   │   ├── s3/               # AWS S3
-│   │   └── slack/            # Slack 알림
-│   ├── tests/                # 테스트 관련
-│   │   ├── chat/             # Chat API 테스트
-│   │   └── utils/            # 테스트 유틸리티
-│   └── utils/                # 공통 유틸리티
-│       └── logger.js         # 구조화된 로깅
-├── config/                   # 설정 파일
-│   └── default.js            # 기본 설정
-├── scripts/                  # 실행 스크립트
-│   ├── run-tests.js          # 메인 테스트 실행기
-│   └── upload-to-gsheet.js   # Google Sheets 업로드
-├── reports/                  # 테스트 결과 리포트
-└── package.json
+│   ├── api/              # API 클라이언트
+│   ├── data/             # 테스트 데이터
+│   ├── integrations/     # 외부 서비스 연동
+│   ├── monitoring/       # 성능 모니터링
+│   ├── tests/            # 테스트 케이스
+│   ├── types/            # TypeScript 타입 정의
+│   └── utils/            # 유틸리티 함수
+├── config/               # 설정 파일
+├── scripts/              # 실행 스크립트
+├── reports/              # 테스트 리포트
+├── .github/workflows/    # GitHub Actions 워크플로우
+└── Makefile             # 편리한 명령어
 ```
 
 ## 🛠️ 설치 및 설정
 
-### 1. 의존성 설치
+### 1. 저장소 클론
 
 ```bash
-cd pactumjs_test_new
+git clone https://github.com/your-org/meeta-dev-tools.git
+cd meeta-dev-tools/pactumjs_test_new
+```
+
+### 2. 의존성 설치
+
+```bash
 npm install
 ```
 
-### 2. 환경 변수 설정
+### 3. 환경 변수 설정
 
-`.env` 파일을 생성하고 다음 환경 변수들을 설정하세요:
+`.env` 파일을 생성하고 다음 내용을 입력:
 
-```bash
-cp .env.example .env
-# .env 파일 편집
+```env
+# API Configuration
+API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
+API_TIMEOUT=30000
+API_RETRIES=3
+
+# Test Configuration
+TEST_CONCURRENCY=5
+REPORT_FORMAT=json
+OUTPUT_DIR=./reports
+
+# AWS Credentials
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=ap-northeast-1
+S3_BUCKET_NAME=meeta-ai-navi-test
+S3_TEST_CASES_KEY=test-cases.csv
+S3_RESULTS_KEY=test-results.csv
+
+# Google API Credentials
+GOOGLE_CLIENT_EMAIL=your-service-account@project.iam.gserviceaccount.com
+GOOGLE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_SPREADSHEET_ID=your_spreadsheet_id
+GOOGLE_SHEET_RANGE=LLM표준!A5:E1000
+GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
+
+# Slack Webhook URL
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+SLACK_CHANNEL=#test-results
+SLACK_USERNAME=Test Bot
+
+# Default Test Parameters
+DEFAULT_CLIENT_ID=AB123456
+DEFAULT_APP_ID=1234
+DEFAULT_USER_ID=test_user
 ```
 
-### 3. Google Sheets 인증 (선택사항)
+### 4. TypeScript 빌드
 
-Google Sheets를 사용하는 경우 서비스 계정 JSON 파일을 `config/service-account.json`에 저장하세요.
+```bash
+npm run build
+```
 
 ## 🎯 사용법
 
-### 기본 테스트 실행
+### 기본 명령어
 
 ```bash
+# 모든 사용 가능한 명령어 보기
+make help
+
+# 개발 환경 설정
+make dev-setup
+
+# 환경 설정 검증
+make validate-env
+
+# API 연결 상태 확인
+make check-api
+```
+
+### 테스트 실행
+
+```bash
+# 단일 테스트 케이스 실행
+make test-single TEST_ID=ELEMENTARY_A-1
+
+# 등급별 테스트 실행
+make test-grade GRADE=elementary
+
+# 카테고리별 테스트 실행
+make test-category CATEGORY="授業・カリキュラム"
+
 # 모든 테스트 실행
-npm test
+make test-all
 
-# 또는 직접 실행
-node scripts/run-tests.js
+# 드라이런 모드 (API 호출 없이 검증만)
+make test-dry-run
 ```
 
-### 필터링 옵션
+### 부하 테스트
 
 ```bash
-# 학년별 실행
-npm run test:grade -- high
-node scripts/run-tests.js --grade=high
+# 기본 부하 테스트
+make load-test
 
-# 카테고리별 실행
-npm run test:category -- A
-node scripts/run-tests.js --category=授業
+# 가벼운 부하 테스트
+make load-test-light
 
-# 특정 테스트 실행
-npm run test:id -- HIGH_A_1
-node scripts/run-tests.js --id=HIGH_A_1
+# 무거운 부하 테스트
+make load-test-heavy
 
-# 소스별 실행
-node scripts/run-tests.js --source=excel_faq
+# 커스텀 부하 테스트
+make load-test CONCURRENCY=10 DURATION=120 TARGET_RPS=5
 ```
 
-### S3에서 테스트 케이스 로드
+### 고급 테스트 시나리오
 
 ```bash
-node scripts/run-tests.js --from-s3 --bucket=my-bucket --key=test-cases.csv
+# 연기 테스트 (핵심 기능)
+make test-smoke
+
+# 회귀 테스트 (포괄적 커버리지)
+make test-regression
+
+# 야간 테스트 스위트 (부하 테스트 포함)
+make test-nightly
 ```
 
-### 기타 옵션
+## 🤖 GitHub Actions 설정
+
+### Repository Secrets 설정
+
+GitHub 저장소 → Settings → Secrets → Actions에서 다음 시크릿을 추가:
+
+- `AWS_ACCESS_KEY_ID`: AWS 액세스 키
+- `AWS_SECRET_ACCESS_KEY`: AWS 시크릿 키
+- `GOOGLE_PRIVATE_KEY`: Google Service Account private key
+- `SLACK_WEBHOOK_URL`: Slack 웹훅 URL
+
+### 자동화된 테스트
+
+1. **수동 테스트 실행**: Actions 탭에서 "Manual Test Execution" 워크플로우 실행
+2. **일일 테스트**: 매일 오전 2시 자동 실행
+3. **주간 테스트**: 매주 일요일 오전 1시 포괄적 테스트 실행
+
+## 📊 모니터링 및 알림
+
+### 성능 모니터링
+
+- **실시간 메트릭 수집**: 응답 시간, 처리량, 오류율
+- **이상 감지**: 성능 저하 및 오류 패턴 자동 감지
+- **인사이트 생성**: AI 기반 성능 분석 및 권장사항
+
+### 대시보드
+
+테스트 실행 후 생성되는 HTML 대시보드:
 
 ```bash
-# 드라이런 (실제 API 호출 없이 테스트)
-node scripts/run-tests.js --dry-run
-
-# Slack 알림 비활성화
-node scripts/run-tests.js --no-slack
+# 대시보드 위치
+reports/dashboard/realtime-dashboard.html
+reports/dashboard/session-{sessionId}-report.html
 ```
 
-### Google Sheets 업로드
+### 알림 시스템
 
-```bash
-# 기본 설정으로 업로드
-node scripts/upload-to-gsheet.js
+- **Slack 통합**: 실시간 테스트 결과 및 알림
+- **다중 채널**: 심각도에 따른 채널 분리
+- **지능형 억제**: 중복 알림 방지 및 속도 제한
 
-# 사용자 정의 옵션
-node scripts/upload-to-gsheet.js --spreadsheet=YOUR_SHEET_ID --range=Sheet1!A:Z --output=custom-test-cases.csv
-```
+## 🔧 개발 가이드
 
-## 📊 테스트 케이스 형식
+### 새 테스트 케이스 추가
 
-### CSV 형식
-```csv
-테스트번호,유저역할,유저아이디,테스트카테고리,메세지
-HIGH_A_1,User_S,test_user_001,授業・カリキュラム,大学受験対策はどの科目に対応していますか？
-```
+1. `src/data/csv/` 디렉토리에 CSV 파일 추가
+2. `scripts/generate-faq-cases.js` 실행하여 JSON 변환
+3. 테스트 실행으로 검증
 
-### Excel 형식 (314CommunityFAQExample.xlsx)
-- 학년별 시트: 高校生, 中学生, 小学生, 幼児
-- 각 시트에 질문과 예상 답변 포함
+### API 클라이언트 확장
 
-## 🔧 설정
-
-### config/default.js
-
-주요 설정 옵션:
-
-```javascript
-module.exports = {
-  api: {
-    baseUrl: 'API_BASE_URL',
-    timeout: 30000,
-    concurrency: 5
-  },
-  aws: {
-    region: 'ap-northeast-1',
-    s3: {
-      bucket: 'YOUR_BUCKET'
-    }
-  },
-  defaults: {
-    clientId: 'AB123456',
-    appId: '1234'
+```typescript
+// src/api/client.ts
+export class AINaviChatClient {
+  async newEndpoint(params: NewParams): Promise<NewResponse> {
+    // 새 엔드포인트 구현
   }
 }
 ```
 
-## 📈 결과 및 리포팅
+### 커스텀 검증 로직
 
-### 테스트 결과
-
-- **S3**: CSV 형식으로 자동 업로드
-- **로컬**: `reports/` 디렉토리에 JSON 형식 저장
-- **Slack**: 실시간 알림 및 요약 리포트
-
-### 로그
-
-- **combined.log**: 모든 로그
-- **error.log**: 에러 로그만
-- **콘솔**: 실시간 진행 상황
-
-## 🚦 API 스펙
-
-현재 지원하는 AI Navi Chat API:
-
-```
-POST /students/chat
-{
-  "clientId": "AB123456",    // 8자리 (2문자 + 6숫자)
-  "appId": "1234",           // 4자리
-  "gradeId": "high",         // preschool|elementary|middle|high
-  "userId": "user_001",
-  "message": "질문 내용",
-  "sessionId": "optional"
+```typescript
+// src/tests/validators/
+export class CustomValidator {
+  validate(response: any): ValidationResult {
+    // 커스텀 검증 로직
+  }
 }
 ```
 
-### 응답 형식
+## 📈 성능 기준
 
-```json
-[
-  {
-    "type": "main",
-    "text": "주요 답변 내용"
-  },
-  {
-    "type": "sub", 
-    "text": "부가 설명"
-  },
-  {
-    "type": "cta",
-    "text": "행동 유도 메시지"
-  }
-]
-```
+- **응답 시간**: 평균 5초 이하
+- **성공률**: 95% 이상
+- **동시 처리**: 최대 10개 요청
+- **처리량**: 초당 2-5 요청
 
-## 🧪 테스트 검증
+## 🚨 문제 해결
 
-각 테스트는 다음을 검증합니다:
+### 일반적인 문제
 
-- HTTP 응답 코드 (200 OK)
-- 응답 본문 형식 (배열 형태)
-- 버블 개수 (2-3개)
-- 각 버블의 타입과 텍스트 존재
+1. **환경 변수 오류**
+   ```bash
+   make validate-env
+   ```
 
-## 📝 개발
+2. **API 연결 실패**
+   ```bash
+   make check-api
+   ```
 
-### 새로운 테스트 케이스 추가
-
-1. CSV 파일에 직접 추가
-2. Excel 파일 업데이트
-3. Google Sheets에서 관리
-
-### 새로운 API 엔드포인트 지원
-
-1. `src/api/client.js`에서 메서드 추가
-2. `scripts/run-tests.js`에서 테스트 로직 구현
-
-## 🎯 성능 최적화
-
-- **병렬 처리**: 기본 5개 동시 실행 (설정 가능)
-- **타임아웃**: 30초 API 타임아웃
-- **재시도**: 실패시 3회 재시도
-- **로깅**: 구조화된 로깅으로 성능 모니터링
-
-## 🔍 문제 해결
-
-### 일반적인 오류
-
-1. **인증 오류**: AWS 자격 증명 및 Google Sheets 설정 확인
-2. **타임아웃**: API 응답 시간 확인, 타임아웃 값 조정
-3. **테스트 케이스 로드 실패**: 파일 경로 및 형식 확인
+3. **빌드 오류**
+   ```bash
+   make clean && make build
+   ```
 
 ### 로그 확인
 
 ```bash
-# 에러 로그 확인
-tail -f reports/logs/error.log
+# 실시간 로그
+tail -f reports/logs/app.log
 
-# 전체 로그 확인  
-tail -f reports/logs/combined.log
+# 특정 세션 로그
+grep "SESSION_ID" reports/logs/app.log
 ```
 
-## 📞 지원
+## 🤝 기여 가이드
 
-문제가 발생하면 다음을 확인하세요:
+1. 이슈 생성 또는 기존 이슈 확인
+2. 피처 브랜치 생성: `git checkout -b feature/new-feature`
+3. 변경사항 커밋: `git commit -m "Add new feature"`
+4. 브랜치 푸시: `git push origin feature/new-feature`
+5. Pull Request 생성
 
-1. 환경 변수 설정
-2. 네트워크 연결
-3. API 엔드포인트 상태
-4. 로그 파일의 상세 오류 메시지
+## 📝 라이선스
+
+MIT License
+
+## 📞 지원 및 연락처
+
+- **이슈 리포팅**: GitHub Issues
+- **문서**: [Wiki](https://github.com/your-org/meeta-dev-tools/wiki)
+- **토론**: [Discussions](https://github.com/your-org/meeta-dev-tools/discussions)
+
+---
+
+### 빠른 시작
+
+```bash
+# 전체 설정 및 첫 테스트
+make dev-setup
+make test-single TEST_ID=ELEMENTARY_A-1
+
+# 성공하면 더 많은 테스트 실행
+make test-grade GRADE=elementary
+```

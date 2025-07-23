@@ -1,0 +1,18 @@
+{
+  "name": "google-sheets-to-s3",
+  "version": "1.0.0",
+  "description": "Google Sheets to S3 CSV Uploader",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.511.0",
+    "@slack/webhook": "^7.0.5",
+    "csv-parse": "^5.6.0",
+    "csv-stringify": "^6.5.2",
+    "dotenv": "^16.4.1",
+    "googleapis": "^126.0.1",
+    "pactum": "^3.7.6"
+  }
+}

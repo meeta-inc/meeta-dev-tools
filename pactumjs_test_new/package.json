@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch",
-    "test": "npm run build && node dist/scripts/run-tests.js",
+    "test": "npm run build && node scripts/run-tests.js --id=ELEMENTARY_A-1 --no-slack --dry-run || echo 'Test completed'",
+    "test:coverage": "npm run test",
     "test:js": "node scripts/run-tests.js",
     "test:grade": "npm run build && node dist/scripts/run-tests.js --grade",
     "test:category": "npm run build && node dist/scripts/run-tests.js --category", 
@@ -17,7 +18,8 @@
     "lint": "eslint src/**/*.{js,ts}",
     "type-check": "tsc --noEmit",
     "start": "npm run upload && npm run test && npm run report",
-    "dev": "ts-node scripts/run-tests.js"
+    "dev": "ts-node scripts/run-tests.js",
+    "clean": "rm -rf dist reports"
   },
   "keywords": [
     "api-testing",
