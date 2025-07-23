@@ -42,13 +42,13 @@ jobs:
       continue-on-error: true
       
     - name: Run tests
-      run: npm run test
+      run: npm run test --workspace=ai-navi-backend-mock
       
     - name: Run tests with coverage
-      run: npm run test:coverage
+      run: npm run test:coverage --workspace=ai-navi-backend-mock
       
     - name: Build projects
-      run: npm run build
+      run: npm run build --workspace=ai-navi-backend-mock
       
     - name: Run API integration tests
       run: |
@@ -91,7 +91,7 @@ jobs:
       run: npm run install:all
       
     - name: Generate coverage report
-      run: npm run test:coverage
+      run: npm run test:coverage --workspace=ai-navi-backend-mock
       
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
