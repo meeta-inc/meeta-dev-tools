@@ -1,11 +1,10 @@
-export default {
-  preset: 'ts-jest/presets/default-esm',
-  extensionsToTreatAsEsm: ['.ts'],
+module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
-    '^.+\\.ts$': ['ts-jest', { useESM: true }],
+    '^.+\\.ts$': 'ts-jest',
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -16,7 +15,4 @@ export default {
   testTimeout: 10000,
   forceExit: true,
   detectOpenHandles: true,
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-  }
 };
