@@ -1,10 +1,18 @@
 # MeetA Development Tools
 
+[![CI/CD Pipeline](https://github.com/meeta-inc/meeta-dev-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/meeta-inc/meeta-dev-tools/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/meeta-inc/meeta-dev-tools/branch/main/graph/badge.svg)](https://codecov.io/gh/meeta-inc/meeta-dev-tools)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 MeetA 개발을 위한 도구들을 모아놓은 모노레포입니다.
 
 ## 프로젝트 구성
 
 ### 🚀 AI Navi Backend Mock (`ai-navi-backend-mock/`)
+
+![Jest Tests](https://img.shields.io/badge/tests-27%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)
 
 AI Navi 프론트엔드 개발을 위한 Mock API 서버입니다.
 
@@ -79,16 +87,33 @@ AI Navi Backend Mock이 실행 중일 때:
 
 ### 테스트
 모든 PR은 테스트 통과가 필수입니다:
+
+**Jest 단위 테스트 (27개 테스트)**
 ```bash
-# 유닛 테스트
+# 유닛 테스트 실행
+cd ai-navi-backend-mock
 npm test
 
-# 커버리지 확인
+# 커버리지 확인 (95% 달성)
 npm run test:coverage
 
-# API 통합 테스트
-make test-all
+# 감시 모드로 테스트 실행
+npm run test:watch
 ```
+
+**API 통합 테스트**
+```bash
+# Makefile을 이용한 통합 테스트
+make test-all
+make test-health
+make test-chat
+make test-validation
+```
+
+**CI/CD 자동 테스트**
+- GitHub Actions에서 Node.js 18.x, 20.x, 22.x 매트릭스 테스트
+- PR마다 자동 커버리지 리포트 생성
+- Codecov를 통한 커버리지 추적
 
 ## 배포
 
