@@ -4,7 +4,8 @@
   "description": "MeetA development tools monorepo",
   "private": true,
   "workspaces": [
-    "ai-navi-backend-mock"
+    "ai-navi-backend-mock",
+    "pactumjs_test_new"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=ai-navi-backend-mock",
@@ -34,5 +35,8 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
   }
 }
