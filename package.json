@@ -1,0 +1,38 @@
+{
+  "name": "meeta-dev-tools",
+  "version": "1.0.0",
+  "description": "MeetA development tools monorepo",
+  "private": true,
+  "workspaces": [
+    "ai-navi-backend-mock"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=ai-navi-backend-mock",
+    "test": "npm run test --workspaces",
+    "test:coverage": "npm run test:coverage --workspaces",
+    "build": "npm run build --workspaces",
+    "clean": "npm run clean --workspaces",
+    "install:all": "npm install --workspaces"
+  },
+  "keywords": [
+    "meeta",
+    "development-tools",
+    "mock-server",
+    "ai-navi",
+    "monorepo"
+  ],
+  "author": "MeetA Inc.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/meeta-inc/meeta-dev-tools.git"
+  },
+  "bugs": {
+    "url": "https://github.com/meeta-inc/meeta-dev-tools/issues"
+  },
+  "homepage": "https://github.com/meeta-inc/meeta-dev-tools#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}
