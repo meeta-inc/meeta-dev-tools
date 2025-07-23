@@ -37,11 +37,13 @@ class GoogleSheetsService {
         key: credentials.private_key,
         scopes: [
           'https://www.googleapis.com/auth/spreadsheets.readonly',
-          'https://www.googleapis.com/auth/spreadsheets'
+          'https://www.googleapis.com/auth/spreadsheets',
+          'https://www.googleapis.com/auth/drive'
         ],
       });
 
       this.sheets = google.sheets({ version: 'v4', auth: this.auth });
+      this.drive = google.drive({ version: 'v3', auth: this.auth });
       
       logger.info('Google Sheets service initialized successfully');
 
@@ -184,34 +186,186 @@ class GoogleSheetsService {
   }
 
   /**
-   * Upload test results to Google Sheets
-   * @param {Array} results - Test results array
-   * @param {string} targetRange - Target sheet range (e.g., 'Results!A1')
-   * @returns {Promise<Object>} Upload result
+   * Create a new spreadsheet file with timestamp-based name in Google Drive folder
+   * @param {string} testType - Type of test (Single, Grade, Category, All)
+   * @returns {Promise<Object>} New spreadsheet info
    */
-  async uploadResults(results, targetRange = 'Results!A1') {
-    // Convert results to sheet format
-    const headers = [
-      '테스트번호', '유저역할', '유저아이디', '테스트카테고리', '메세지',
-      '응답결과_스테이터스코드', '응답결과_바디', '응답시간(ms)', '실행시간'
-    ];
+  async createNewSpreadsheet(testType = 'Results') {
+    await this.initialize();
 
-    const rows = [headers];
-    results.forEach(result => {
-      rows.push([
-        result.testId || '',
-        result.userRole || 'User_S',
-        result.userId || '',
-        result.category || '',
-        result.message || '',
-        result.statusCode || '',
-        typeof result.body === 'object' ? JSON.stringify(result.body) : result.body || '',
-        result.responseTime || '',
-        new Date().toISOString()
-      ]);
-    });
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/T/, '_')
+      .replace(/:/g, '-')
+      .replace(/\..+/, '');
+    
+    const spreadsheetTitle = `AI_Navi_Test_${testType}_${timestamp}`;
 
-    return await this.writeData(rows, targetRange);
+    try {
+      // Create the spreadsheet request
+      const createRequest = {
+        resource: {
+          properties: {
+            title: spreadsheetTitle
+          },
+          sheets: [{
+            properties: {
+              title: 'Test Results',
+              gridProperties: {
+                rowCount: 1000,
+                columnCount: 26
+              }
+            }
+          }]
+        }
+      };
+
+      // If folder ID is provided, create file in that folder using Drive API
+      let newSpreadsheetId, spreadsheetUrl;
+      
+      if (config.gsheet.driveFolderId) {
+        // Create spreadsheet directly in the folder using Drive API
+        const driveResponse = await this.drive.files.create({
+          resource: {
+            name: spreadsheetTitle,
+            parents: [config.gsheet.driveFolderId],
+            mimeType: 'application/vnd.google-apps.spreadsheet'
+          }
+        });
+        
+        newSpreadsheetId = driveResponse.data.id;
+        spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${newSpreadsheetId}/edit`;
+        
+        // Now update the created file with sheet structure
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId: newSpreadsheetId,
+          resource: {
+            requests: [{
+              updateSheetProperties: {
+                properties: {
+                  sheetId: 0,
+                  title: 'Test Results',
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 26
+                  }
+                },
+                fields: 'title,gridProperties'
+              }
+            }]
+          }
+        });
+        
+        logger.info(`Created spreadsheet directly in folder: ${config.gsheet.driveFolderId}`);
+      } else {
+        // Create normally if no folder specified
+        const response = await this.sheets.spreadsheets.create(createRequest);
+        newSpreadsheetId = response.data.spreadsheetId;
+        spreadsheetUrl = response.data.spreadsheetUrl;
+      }
+
+      logger.info(`Created new spreadsheet: ${spreadsheetTitle}`, {
+        id: newSpreadsheetId,
+        url: spreadsheetUrl
+      });
+
+      return {
+        spreadsheetId: newSpreadsheetId,
+        url: spreadsheetUrl,
+        title: spreadsheetTitle,
+        sheetName: 'Test Results'
+      };
+
+    } catch (error) {
+      logger.error(`Failed to create new spreadsheet: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload test results to a new Google Sheets tab with unique naming
+   * @param {Array} results - Test results array
+   * @param {string} testType - Type of test for sheet naming
+   * @returns {Promise<Object>} Upload result with sheet URL
+   */
+  async uploadResults(results, testType = 'Results') {
+    await this.initialize();
+
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/T/, '_')
+      .replace(/:/g, '-')
+      .replace(/\..+/, '');
+    
+    const sheetName = `${testType}_${timestamp}`;
+
+    try {
+      // Create new sheet in existing spreadsheet
+      const response = await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: this.spreadsheetId,
+        resource: {
+          requests: [{
+            addSheet: {
+              properties: {
+                title: sheetName,
+                gridProperties: {
+                  rowCount: 1000,
+                  columnCount: 26
+                }
+              }
+            }
+          }]
+        }
+      });
+
+      const newSheetId = response.data.replies[0].addSheet.properties.sheetId;
+      logger.info(`Created new sheet: ${sheetName}`, { sheetId: newSheetId });
+
+      // Convert results to sheet format
+      const headers = [
+        '테스트번호', '유저역할', '유저아이디', '테스트카테고리', '메세지',
+        '응답결과_스테이터스코드', '응답결과_바디', '응답시간(ms)', 
+        '성공여부', '검증오류', '실행일시'
+      ];
+
+      const rows = [headers];
+      results.forEach(result => {
+        rows.push([
+          result.testId || '',
+          result.userRole || 'User_S',
+          result.userId || '',
+          result.category || '',
+          result.message || '',
+          result.statusCode || '',
+          typeof result.body === 'object' ? JSON.stringify(result.body) : result.body || '',
+          result.responseTime || '',
+          result.success ? '성공' : '실패',
+          result.validationErrors ? result.validationErrors.join('; ') : '',
+          new Date().toISOString()
+        ]);
+      });
+
+      const targetRange = `${sheetName}!A1`;
+      const writeResult = await this.writeData(rows, targetRange);
+      
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${this.spreadsheetId}/edit#gid=${newSheetId}`;
+      
+      logger.info('Results uploaded to new Google Sheet', {
+        sheetName,
+        url: sheetUrl
+      });
+      
+      // Return result with specific sheet URL
+      return {
+        ...writeResult,
+        sheetName,
+        url: sheetUrl
+      };
+
+    } catch (error) {
+      logger.error(`Failed to create new sheet: ${error.message}`);
+      throw error;
+    }
   }
 }
 

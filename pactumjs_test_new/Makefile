@@ -55,17 +55,17 @@ test-single: build ## Run a single test case (requires TEST_ID)
 	fi
 	@echo "$(GREEN)Running single test: $(TEST_ID)$(NC)"
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --id=$(TEST_ID) --no-slack; \
+		node scripts/run-tests.js --id=$(TEST_ID) --concurrency=1 --no-slack; \
 	else \
-		node scripts/run-tests.js --id=$(TEST_ID); \
+		node scripts/run-tests.js --id=$(TEST_ID) --concurrency=1; \
 	fi
 
 test-grade: build ## Run tests filtered by grade
 	@echo "$(GREEN)Running tests for grade: $(GRADE)$(NC)"
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --grade=$(GRADE) --no-slack; \
+		node scripts/run-tests.js --grade=$(GRADE) --concurrency=1 --no-slack; \
 	else \
-		node scripts/run-tests.js --grade=$(GRADE); \
+		node scripts/run-tests.js --grade=$(GRADE) --concurrency=1; \
 	fi
 
 test-category: build ## Run tests filtered by category (requires CATEGORY)
@@ -76,17 +76,17 @@ test-category: build ## Run tests filtered by category (requires CATEGORY)
 	fi
 	@echo "$(GREEN)Running tests for category: $(CATEGORY)$(NC)"
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --category="$(CATEGORY)" --no-slack; \
+		node scripts/run-tests.js --category="$(CATEGORY)" --concurrency=1 --no-slack; \
 	else \
-		node scripts/run-tests.js --category="$(CATEGORY)"; \
+		node scripts/run-tests.js --category="$(CATEGORY)" --concurrency=1; \
 	fi
 
 test-all: build ## Run all available tests
 	@echo "$(GREEN)Running all tests...$(NC)"
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --no-slack; \
+		node scripts/run-tests.js --concurrency=1 --no-slack; \
 	else \
-		node scripts/run-tests.js; \
+		node scripts/run-tests.js --concurrency=1; \
 	fi
 
 test-dry-run: build ## Run tests in dry-run mode (no actual API calls)
@@ -191,9 +191,9 @@ test-smoke: ## Run smoke tests (essential functionality)
 
 test-regression: ## Run regression tests (comprehensive coverage)
 	@echo "$(GREEN)Running regression tests...$(NC)"
-	@$(MAKE) test-grade GRADE=elementary NO_SLACK=true
-	@$(MAKE) test-grade GRADE=middle NO_SLACK=true
-	@$(MAKE) test-grade GRADE=high NO_SLACK=true
+	@CONCURRENCY=1 $(MAKE) test-grade GRADE=elementary NO_SLACK=true
+	@CONCURRENCY=1 $(MAKE) test-grade GRADE=middle NO_SLACK=true
+	@CONCURRENCY=1 $(MAKE) test-grade GRADE=high NO_SLACK=true
 
 test-nightly: ## Run nightly test suite (full coverage with load testing)
 	@echo "$(GREEN)Running nightly test suite...$(NC)"

@@ -1,4 +1,4 @@
-const { IncomingWebhook } = require('@slack/webhook');
+const https = require('https');
 const config = require('../../../config/default');
 const logger = require('../../utils/logger');
 
@@ -13,9 +13,156 @@ class SlackService {
     
     if (!this.webhookUrl) {
       logger.warn('Slack webhook URL not configured - notifications disabled');
-      this.webhook = null;
-    } else {
-      this.webhook = new IncomingWebhook(this.webhookUrl);
+    }
+  }
+
+  /**
+   * Send HTTP request to Slack webhook
+   * @param {Object} payload - Message payload
+   * @returns {Promise<void>}
+   */
+  async sendHttpRequest(payload) {
+    return new Promise((resolve, reject) => {
+      const data = JSON.stringify(payload);
+      const url = new URL(this.webhookUrl);
+      
+      const options = {
+        hostname: url.hostname,
+        port: 443,
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(data, 'utf8')
+        },
+        timeout: 10000
+      };
+
+      const req = https.request(options, (res) => {
+        let responseData = '';
+        res.on('data', chunk => responseData += chunk);
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            resolve(responseData);
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${responseData}`));
+          }
+        });
+      });
+
+      req.on('error', reject);
+      req.on('timeout', () => reject(new Error('Request timeout')));
+      req.write(data);
+      req.end();
+    });
+  }
+
+  /**
+   * Send single test detailed results to Slack
+   * @param {Object} testResult - Single test result
+   * @param {Object} summary - Test summary
+   * @returns {Promise<void>}
+   */
+  async sendSingleTestDetails(testResult, summary) {
+    if (!this.webhookUrl) {
+      logger.warn('Slack webhook not configured - skipping notification');
+      return;
+    }
+
+    try {
+      const { testId, statusCode, success, responseTime, grade, category, message, body, validationErrors } = testResult;
+      
+      // Main status
+      const statusIcon = success ? ':white_check_mark:' : ':x:';
+      const statusText = success ? 'Success' : 'Failed';
+      
+      let detailsText = `Test ID: ${testId}\n`;
+      detailsText += `Status: ${statusIcon} ${statusText}\n`;
+      detailsText += `Response Time: ${responseTime}ms\n`;
+      detailsText += `Grade: ${grade || 'N/A'}\n`;
+      detailsText += `Category: ${category || 'N/A'}\n`;
+      
+      // Add bubble count if response is array
+      if (Array.isArray(body)) {
+        detailsText += `Bubble Count: ${body.length}\n`;
+      }
+      
+      detailsText += `\n:question: User Question:\n${message}\n`;
+      
+      // Add AI response details if available
+      if (Array.isArray(body) && body.length > 0) {
+        detailsText += `\n:clipboard: AI Response Details:\n`;
+        
+        body.forEach((bubble, index) => {
+          const bubbleType = bubble.type || 'unknown';
+          const typeLabel = bubbleType === 'main' ? 'main' : 
+                           bubbleType === 'sub' ? 'sub' : 
+                           bubbleType === 'cta' ? 'cta' : bubbleType;
+          
+          detailsText += `:speech_balloon: Response ${index + 1} (${typeLabel}):\n`;
+          
+          // Extract full text from bubble
+          let bubbleText = '';
+          if (bubble.text) {
+            bubbleText = bubble.text;
+          } else if (bubble.data) {
+            if (typeof bubble.data === 'string') {
+              bubbleText = bubble.data;
+            } else if (bubble.data.text) {
+              bubbleText = bubble.data.text;
+            } else {
+              bubbleText = JSON.stringify(bubble.data);
+            }
+          }
+          
+          detailsText += `${bubbleText}\n`;
+        });
+      } else if (body && typeof body === 'object') {
+        detailsText += `\n:clipboard: Response Body:\n${JSON.stringify(body, null, 2)}\n`;
+      } else if (body) {
+        detailsText += `\n:clipboard: Response:\n${body}\n`;
+      }
+      
+      // Add validation errors if any
+      if (validationErrors && validationErrors.length > 0) {
+        detailsText += `\n:warning: Validation Errors:\n${validationErrors.join('\n')}\n`;
+      }
+      
+      // Add timestamp
+      detailsText += `\n:clock1: Time: ${new Date().toLocaleString()}\n`;
+      
+      const slackMessage = {
+        username: this.username,
+        attachments: [
+          {
+            color: success ? 'good' : 'danger',
+            title: '🔍 Single Test Detailed Results',
+            text: detailsText,
+            footer: 'AI Navi Test Automation - Single Test',
+            ts: Math.floor(Date.now() / 1000)
+          }
+        ]
+      };
+      
+      // Add Google Sheets link if available
+      if (summary.sheetsUrl) {
+        slackMessage.attachments[0].fields = [{
+          title: 'View Results',
+          value: `<${summary.sheetsUrl}|📊 Google Sheets에서 상세 결과 보기>`,
+          short: false
+        }];
+      }
+
+      await this.sendHttpRequest(slackMessage);
+      
+      logger.info('Single test details sent to Slack', {
+        testId,
+        success,
+        responseTime
+      });
+
+    } catch (error) {
+      logger.error(`Failed to send single test details to Slack: ${error.message}`);
     }
   }
 
@@ -25,7 +172,7 @@ class SlackService {
    * @returns {Promise<void>}
    */
   async sendTestSummary(summary) {
-    if (!this.webhook) {
+    if (!this.webhookUrl) {
       logger.warn('Slack webhook not configured - skipping notification');
       return;
     }
@@ -43,7 +190,6 @@ class SlackService {
       }
 
       const message = {
-        channel: this.channel,
         username: this.username,
         attachments: [
           {
@@ -109,7 +255,7 @@ class SlackService {
         });
       }
 
-      await this.webhook.send(message);
+      await this.sendHttpRequest(message);
       
       logger.info('Test summary sent to Slack', {
         channel: this.channel,
@@ -132,20 +278,19 @@ class SlackService {
    * @returns {Promise<void>}
    */
   async sendMessage(text, options = {}) {
-    if (!this.webhook) {
+    if (!this.webhookUrl) {
       logger.warn('Slack webhook not configured - skipping message');
       return;
     }
 
     try {
       const message = {
-        channel: options.channel || this.channel,
         username: options.username || this.username,
         text: text,
         ...options
       };
 
-      await this.webhook.send(message);
+      await this.sendHttpRequest(message);
       
       logger.info('Message sent to Slack', {
         channel: message.channel,
