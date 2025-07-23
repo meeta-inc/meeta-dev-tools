@@ -3,13 +3,11 @@
 const path = require('path');
 const fs = require('fs');
 
-// Add src to require path
-require('module')._nodeModulePaths.push(path.join(__dirname, '../src'));
-
-const AINaviChatClient = require('../src/api/client');
+const { AINaviChatClient } = require('../dist/src/api/client');
 const TestCaseLoader = require('../src/data/test-case-loader');
 const S3Service = require('../src/integrations/s3/client');
 const SlackService = require('../src/integrations/slack/client');
+const GoogleSheetsService = require('../src/integrations/gsheet/client');
 const logger = require('../src/utils/logger');
 const config = require('../config/default');
 
@@ -22,6 +20,7 @@ class TestRunner {
     this.loader = new TestCaseLoader();
     this.s3Service = new S3Service();
     this.slackService = new SlackService();
+    this.sheetsService = new GoogleSheetsService();
     this.results = [];
   }
 
@@ -53,6 +52,8 @@ class TestRunner {
         options.dryRun = true;
       } else if (arg === '--no-slack') {
         options.noSlack = true;
+      } else if (arg === '--no-gsheet') {
+        options.noGsheet = true;
       }
     });
 
@@ -271,13 +272,30 @@ class TestRunner {
    * @param {Object} summary - Test summary
    * @returns {Promise<void>}
    */
-  async saveResults(results, summary) {
+  async saveResults(results, summary, options = {}) {
     try {
       // Save to S3
       const csvData = this.convertResultsToCSV(results);
       const s3Result = await this.s3Service.uploadTestResults(csvData);
       
       logger.info('Results uploaded to S3', s3Result);
+
+      // Upload to Google Sheets
+      let sheetsUrl = null;
+      if (!options.noGsheet) {
+        try {
+          const targetRange = config.gsheet.range || 'Results!A1';
+          await this.sheetsService.uploadResults(results, targetRange);
+          sheetsUrl = `https://docs.google.com/spreadsheets/d/${config.gsheet.spreadsheetId}`;
+          logger.info('Results uploaded to Google Sheets', { url: sheetsUrl });
+          
+          // Add sheets URL to summary for Slack notification
+          summary.sheetsUrl = sheetsUrl;
+        } catch (error) {
+          logger.error(`Failed to upload to Google Sheets: ${error.message}`);
+          // Don't throw - Google Sheets failure shouldn't break the test process
+        }
+      }
 
       // Save summary to local file
       const reportsDir = path.join(__dirname, '../reports');
@@ -292,7 +310,8 @@ class TestRunner {
       console.log(JSON.stringify({
         bucket: s3Result.bucket,
         key: s3Result.key,
-        summary: summary
+        summary: summary,
+        sheetsUrl: sheetsUrl
       }));
 
     } catch (error) {
@@ -384,7 +403,7 @@ class TestRunner {
 
       // Save results
       if (!options.dryRun) {
-        await this.saveResults(results, summary);
+        await this.saveResults(results, summary, options);
       }
 
       // Send summary notification

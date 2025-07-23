@@ -100,6 +100,15 @@ class SlackService {
         });
       }
 
+      // Add Google Sheets link if available
+      if (summary.sheetsUrl) {
+        message.attachments[0].fields.push({
+          title: 'View Results',
+          value: `<${summary.sheetsUrl}|📊 Google Sheets에서 상세 결과 보기>`,
+          short: false
+        });
+      }
+
       await this.webhook.send(message);
       
       logger.info('Test summary sent to Slack', {
