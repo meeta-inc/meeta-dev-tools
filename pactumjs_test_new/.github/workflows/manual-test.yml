@@ -1,0 +1,282 @@
+name: Manual Test Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Test Type'
+        required: true
+        default: 'single'
+        type: choice
+        options:
+        - single
+        - grade
+        - category
+        - load
+        - performance
+      
+      grade:
+        description: 'Grade Filter (elementary, middle, high, preschool, all)'
+        required: false
+        default: 'elementary'
+        type: choice
+        options:
+        - elementary
+        - middle
+        - high
+        - preschool
+        - all
+      
+      category:
+        description: 'Category Filter (授業・カリキュラム, 通塾・学習時間, 料金・制度, etc.)'
+        required: false
+        default: ''
+        type: string
+      
+      test_id:
+        description: 'Specific Test ID (e.g., ELEMENTARY_A-1)'
+        required: false
+        default: ''
+        type: string
+      
+      concurrency:
+        description: 'Concurrency Level (1-20, for load tests)'
+        required: false
+        default: '5'
+        type: string
+      
+      duration:
+        description: 'Test Duration in seconds (for load tests)'
+        required: false
+        default: '60'
+        type: string
+      
+      target_rps:
+        description: 'Target Requests Per Second (for load tests)'
+        required: false
+        default: '2'
+        type: string
+      
+      enable_slack:
+        description: 'Send Slack Notifications'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  manual-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build TypeScript
+      run: npm run build
+      
+    - name: Copy config files to dist
+      run: |
+        cp -r config dist/config
+        cp -r src/utils dist/src/utils
+        
+    - name: Create environment file
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        cat > .env << EOF
+        # API Configuration
+        API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
+        API_TIMEOUT=30000
+        API_RETRIES=3
+        
+        # Test Configuration
+        TEST_CONCURRENCY=${{ inputs.concurrency }}
+        REPORT_FORMAT=json
+        OUTPUT_DIR=./reports
+        
+        # AWS Credentials
+        AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        AWS_REGION=ap-northeast-1
+        S3_BUCKET_NAME=meeta-ai-navi-test
+        S3_TEST_CASES_KEY=test-cases.csv
+        S3_RESULTS_KEY=test-results.csv
+        
+        # Google API Credentials
+        GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
+        GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
+        GOOGLE_SPREADSHEET_ID=1K9gCxFuxB7mtNxBhjzTyyEFdoujqsIMYMqUSpGovU40
+        GOOGLE_SHEET_RANGE=LLM표준!A5:E1000
+        GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
+        
+        # Slack Webhook URL
+        SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+        SLACK_CHANNEL=#manual-test-results
+        SLACK_USERNAME=Manual Test Bot
+        
+        # Default Test Parameters
+        DEFAULT_CLIENT_ID=AB123456
+        DEFAULT_APP_ID=1234
+        DEFAULT_USER_ID=manual_test_user_${{ github.run_number }}
+        EOF
+
+    - name: Execute Single Test
+      if: inputs.test_type == 'single'
+      run: |
+        echo "🚀 Executing Single Test: ${{ inputs.test_id }}"
+        if [ -n "${{ inputs.test_id }}" ]; then
+          TEST_ARGS="--id=${{ inputs.test_id }}"
+        else
+          TEST_ARGS="--id=ELEMENTARY_A-1"
+          echo "⚠️ No test ID specified, using default: ELEMENTARY_A-1"
+        fi
+        
+        if [ "${{ inputs.enable_slack }}" == "false" ]; then
+          TEST_ARGS="$TEST_ARGS --no-slack"
+        fi
+        
+        timeout 300s node scripts/run-tests.js $TEST_ARGS
+        
+    - name: Execute Grade-based Test
+      if: inputs.test_type == 'grade'
+      run: |
+        echo "🚀 Executing Grade Test: ${{ inputs.grade }}"
+        TEST_ARGS="--grade=${{ inputs.grade }}"
+        
+        if [ "${{ inputs.enable_slack }}" == "false" ]; then
+          TEST_ARGS="$TEST_ARGS --no-slack"
+        fi
+        
+        timeout 600s node scripts/run-tests.js $TEST_ARGS
+        
+    - name: Execute Category-based Test
+      if: inputs.test_type == 'category'
+      run: |
+        echo "🚀 Executing Category Test: ${{ inputs.category }}"
+        if [ -n "${{ inputs.category }}" ]; then
+          TEST_ARGS="--category=${{ inputs.category }}"
+        else
+          echo "❌ Category is required for category-based tests"
+          exit 1
+        fi
+        
+        if [ "${{ inputs.enable_slack }}" == "false" ]; then
+          TEST_ARGS="$TEST_ARGS --no-slack"
+        fi
+        
+        timeout 600s node scripts/run-tests.js $TEST_ARGS
+        
+    - name: Execute Load Test
+      if: inputs.test_type == 'load'
+      run: |
+        echo "🚀 Executing Load Test"
+        echo "Parameters: Concurrency=${{ inputs.concurrency }}, Duration=${{ inputs.duration }}s, Target RPS=${{ inputs.target_rps }}"
+        
+        LOAD_ARGS="--max-concurrency=${{ inputs.concurrency }} --target-rps=${{ inputs.target_rps }} --duration=${{ inputs.duration }}"
+        
+        if [ -n "${{ inputs.grade }}" ] && [ "${{ inputs.grade }}" != "all" ]; then
+          LOAD_ARGS="$LOAD_ARGS --grade=${{ inputs.grade }}"
+        fi
+        
+        timeout 900s node scripts/run-load-test.js $LOAD_ARGS
+        
+    - name: Execute Performance Test
+      if: inputs.test_type == 'performance'
+      run: |
+        echo "🚀 Executing Performance Test"
+        echo "Running performance monitoring with grade: ${{ inputs.grade }}"
+        
+        PERF_ARGS="--grade=${{ inputs.grade }} --max-concurrency=3 --target-rps=1 --duration=30"
+        
+        timeout 300s node scripts/run-load-test.js $PERF_ARGS
+        
+    - name: Generate Test Summary
+      if: always()
+      run: |
+        echo "## 📊 Manual Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Test Configuration:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Test Type: ${{ inputs.test_type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Grade: ${{ inputs.grade }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Category: ${{ inputs.category }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Test ID: ${{ inputs.test_id }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Concurrency: ${{ inputs.concurrency }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Duration: ${{ inputs.duration }}s" >> $GITHUB_STEP_SUMMARY
+        echo "- Target RPS: ${{ inputs.target_rps }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Slack Notifications: ${{ inputs.enable_slack }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Execution Details:**" >> $GITHUB_STEP_SUMMARY
+        echo "- Workflow Run: #${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Triggered by: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Repository: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Branch: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -d "reports" ] && [ "$(ls -A reports)" ]; then
+          echo "**Generated Reports:**" >> $GITHUB_STEP_SUMMARY
+          ls -la reports/ >> $GITHUB_STEP_SUMMARY || echo "No report files found"
+        else
+          echo "**Reports:** No report files generated" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: manual-test-results-${{ inputs.test_type }}-${{ github.run_number }}
+        path: |
+          reports/
+          .env
+        retention-days: 30
+        
+    - name: Send Success Notification
+      if: success() && inputs.enable_slack
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{
+          "text": "✅ Manual Test Execution Completed Successfully",
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn", 
+                "text": "*✅ Manual Test Execution - Success*\n\n• *Test Type:* ${{ inputs.test_type }}\n• *Grade:* ${{ inputs.grade }}\n• *Category:* ${{ inputs.category }}\n• *Test ID:* ${{ inputs.test_id }}\n• *Triggered by:* ${{ github.actor }}\n• *Run Number:* #${{ github.run_number }}\n• *Repository:* ${{ github.repository }}"
+              }
+            }
+          ]
+        }' \
+        $SLACK_WEBHOOK_URL || echo "Slack notification failed"
+        
+    - name: Send Failure Notification
+      if: failure() && inputs.enable_slack
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        curl -X POST -H 'Content-type: application/json' \
+        --data '{
+          "text": "❌ Manual Test Execution Failed",
+          "blocks": [
+            {
+              "type": "section",
+              "text": {
+                "type": "mrkdwn",
+                "text": "*❌ Manual Test Execution - Failed*\n\n• *Test Type:* ${{ inputs.test_type }}\n• *Grade:* ${{ inputs.grade }}\n• *Category:* ${{ inputs.category }}\n• *Test ID:* ${{ inputs.test_id }}\n• *Triggered by:* ${{ github.actor }}\n• *Run Number:* #${{ github.run_number }}\n• *Repository:* ${{ github.repository }}\n\nPlease check the GitHub Actions logs for details."
+              }
+            }
+          ]
+        }' \
+        $SLACK_WEBHOOK_URL || echo "Slack notification failed"

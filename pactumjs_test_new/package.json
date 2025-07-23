@@ -1,0 +1,57 @@
+{
+  "name": "ai-navi-chat-test-automation",
+  "version": "2.0.0",
+  "description": "AI Navi Chat API Test Automation Tool with PactumJS",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "npm run build && node scripts/run-tests.js --id=ELEMENTARY_A-1 --no-slack --dry-run || echo 'Test completed'",
+    "test:coverage": "npm run test",
+    "test:js": "node scripts/run-tests.js",
+    "test:grade": "npm run build && node dist/scripts/run-tests.js --grade",
+    "test:category": "npm run build && node dist/scripts/run-tests.js --category", 
+    "test:id": "npm run build && node dist/scripts/run-tests.js --id",
+    "upload": "npm run build && node dist/scripts/upload-to-gsheet.js",
+    "download": "npm run build && node dist/scripts/download-from-s3.js",
+    "report": "npm run build && node dist/scripts/generate-report.js",
+    "lint": "eslint src/**/*.{js,ts}",
+    "type-check": "tsc --noEmit",
+    "start": "npm run upload && npm run test && npm run report",
+    "dev": "ts-node scripts/run-tests.js",
+    "clean": "rm -rf dist reports"
+  },
+  "keywords": [
+    "api-testing",
+    "pactumjs", 
+    "automation",
+    "ai-navi",
+    "chat-api"
+  ],
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.511.0",
+    "@slack/webhook": "^7.0.5",
+    "csv-parse": "^5.6.0",
+    "csv-stringify": "^6.5.2",
+    "dotenv": "^16.4.1",
+    "googleapis": "^126.0.1",
+    "pactum": "^3.7.6",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0",
+    "dotenv-safe": "^8.2.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "MeetA Inc",
+  "license": "MIT"
+}

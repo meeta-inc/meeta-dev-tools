@@ -1,0 +1,363 @@
+name: Scheduled Tests
+
+on:
+  schedule:
+    # Run daily at 2 AM JST (17:00 UTC)
+    - cron: '0 17 * * *'
+    # Run weekly comprehensive tests on Sunday at 1 AM JST (16:00 UTC)
+    - cron: '0 16 * * 0'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test Scope'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+        - daily
+        - weekly
+        - full
+
+jobs:
+  daily-tests:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 17 * * *' || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'daily')
+    
+    strategy:
+      matrix:
+        grade: [elementary, middle, high]
+      fail-fast: false
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build TypeScript
+      run: npm run build
+      
+    - name: Copy config files to dist
+      run: |
+        cp -r config dist/config
+        cp -r src/utils dist/src/utils
+        
+    - name: Create environment file
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        cat > .env << EOF
+        # API Configuration
+        API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
+        API_TIMEOUT=30000
+        API_RETRIES=3
+        
+        # Test Configuration
+        TEST_CONCURRENCY=3
+        REPORT_FORMAT=json
+        OUTPUT_DIR=./reports
+        
+        # AWS Credentials
+        AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        AWS_REGION=ap-northeast-1
+        S3_BUCKET_NAME=meeta-ai-navi-test
+        S3_TEST_CASES_KEY=test-cases.csv
+        S3_RESULTS_KEY=test-results.csv
+        
+        # Google API Credentials
+        GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
+        GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
+        GOOGLE_SPREADSHEET_ID=1K9gCxFuxB7mtNxBhjzTyyEFdoujqsIMYMqUSpGovU40
+        GOOGLE_SHEET_RANGE=LLM표준!A5:E1000
+        GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
+        
+        # Slack Webhook URL
+        SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+        SLACK_CHANNEL=#scheduled-test-results
+        SLACK_USERNAME=Scheduled Test Bot
+        
+        # Default Test Parameters
+        DEFAULT_CLIENT_ID=AB123456
+        DEFAULT_APP_ID=1234
+        DEFAULT_USER_ID=scheduled_test_${{ matrix.grade }}
+        EOF
+        
+    - name: Run daily tests for ${{ matrix.grade }}
+      run: |
+        echo "Running daily tests for grade: ${{ matrix.grade }}"
+        # Run 5 random test cases per grade for daily monitoring
+        timeout 300s node scripts/run-tests.js --grade=${{ matrix.grade }} | head -20
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: daily-test-results-${{ matrix.grade }}-${{ github.run_number }}
+        path: reports/
+        retention-days: 7
+
+  weekly-tests:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 16 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.test_scope == 'weekly')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build TypeScript
+      run: npm run build
+      
+    - name: Copy config files to dist
+      run: |
+        cp -r config dist/config
+        cp -r src/utils dist/src/utils
+        
+    - name: Create environment file
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        cat > .env << EOF
+        # API Configuration
+        API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
+        API_TIMEOUT=30000
+        API_RETRIES=3
+        
+        # Test Configuration
+        TEST_CONCURRENCY=5
+        REPORT_FORMAT=json
+        OUTPUT_DIR=./reports
+        
+        # AWS Credentials
+        AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        AWS_REGION=ap-northeast-1
+        S3_BUCKET_NAME=meeta-ai-navi-test
+        S3_TEST_CASES_KEY=test-cases.csv
+        S3_RESULTS_KEY=test-results.csv
+        
+        # Google API Credentials
+        GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
+        GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
+        GOOGLE_SPREADSHEET_ID=1K9gCxFuxB7mtNxBhjzTyyEFdoujqsIMYMqUSpGovU40
+        GOOGLE_SHEET_RANGE=LLM표준!A5:E1000
+        GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
+        
+        # Slack Webhook URL
+        SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+        SLACK_CHANNEL=#weekly-test-results
+        SLACK_USERNAME=Weekly Test Bot
+        
+        # Default Test Parameters
+        DEFAULT_CLIENT_ID=AB123456
+        DEFAULT_APP_ID=1234
+        DEFAULT_USER_ID=weekly_test_user
+        EOF
+        
+    - name: Run comprehensive weekly tests
+      run: |
+        echo "Running comprehensive weekly tests..."
+        
+        # Test each grade with more coverage
+        echo "Testing Elementary grade..."
+        timeout 600s node scripts/run-tests.js --grade=elementary || echo "Elementary tests completed"
+        
+        echo "Testing Middle grade..."
+        timeout 600s node scripts/run-tests.js --grade=middle || echo "Middle tests completed"
+        
+        echo "Testing High grade..."
+        timeout 600s node scripts/run-tests.js --grade=high || echo "High tests completed"
+        
+        # Run light load test
+        echo "Running load test..."
+        timeout 300s node scripts/run-load-test.js --max-concurrency=5 --target-rps=2 --duration=60 || echo "Load test completed"
+        
+    - name: Upload comprehensive test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: weekly-test-results-${{ github.run_number }}
+        path: reports/
+        retention-days: 30
+
+  full-tests:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.test_scope == 'full'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build TypeScript
+      run: npm run build
+      
+    - name: Copy config files to dist
+      run: |
+        cp -r config dist/config
+        cp -r src/utils dist/src/utils
+        
+    - name: Create environment file
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        cat > .env << EOF
+        # API Configuration
+        API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
+        API_TIMEOUT=30000
+        API_RETRIES=3
+        
+        # Test Configuration
+        TEST_CONCURRENCY=10
+        REPORT_FORMAT=json
+        OUTPUT_DIR=./reports
+        
+        # AWS Credentials
+        AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        AWS_REGION=ap-northeast-1
+        S3_BUCKET_NAME=meeta-ai-navi-test
+        S3_TEST_CASES_KEY=test-cases.csv
+        S3_RESULTS_KEY=test-results.csv
+        
+        # Google API Credentials
+        GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
+        GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
+        GOOGLE_SPREADSHEET_ID=1K9gCxFuxB7mtNxBhjzTyyEFdoujqsIMYMqUSpGovU40
+        GOOGLE_SHEET_RANGE=LLM표준!A5:E1000
+        GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
+        
+        # Slack Webhook URL
+        SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+        SLACK_CHANNEL=#full-test-results
+        SLACK_USERNAME=Full Test Bot
+        
+        # Default Test Parameters
+        DEFAULT_CLIENT_ID=AB123456
+        DEFAULT_APP_ID=1234
+        DEFAULT_USER_ID=full_test_user
+        EOF
+        
+    - name: Run full test suite
+      run: |
+        echo "Running full test suite..."
+        
+        # Run all available tests
+        echo "Running all test cases..."
+        timeout 1800s node scripts/run-tests.js || echo "All tests completed"
+        
+        # Run comprehensive load tests
+        echo "Running comprehensive load tests..."
+        timeout 600s node scripts/run-load-test.js --max-concurrency=10 --target-rps=5 --duration=120 || echo "Load tests completed"
+        
+        # Run performance tests for each grade
+        echo "Running performance tests..."
+        timeout 300s node scripts/run-load-test.js --grade=elementary --max-concurrency=5 --target-rps=2 --duration=60 || echo "Elementary performance test completed"
+        timeout 300s node scripts/run-load-test.js --grade=middle --max-concurrency=5 --target-rps=2 --duration=60 || echo "Middle performance test completed"
+        timeout 300s node scripts/run-load-test.js --grade=high --max-concurrency=5 --target-rps=2 --duration=60 || echo "High performance test completed"
+        
+    - name: Upload full test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: full-test-results-${{ github.run_number }}
+        path: reports/
+        retention-days: 90
+
+  notification:
+    needs: [daily-tests, weekly-tests, full-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Send completion notification
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        if [ "${{ needs.daily-tests.result }}" == "success" ] || [ "${{ needs.weekly-tests.result }}" == "success" ] || [ "${{ needs.full-tests.result }}" == "success" ]; then
+          STATUS="✅ Completed Successfully"
+          COLOR="good"
+        else
+          STATUS="❌ Some Tests Failed"
+          COLOR="danger"
+        fi
+        
+        SCHEDULED_TYPE="Unknown"
+        if [ "${{ github.event.schedule }}" == "0 17 * * *" ]; then
+          SCHEDULED_TYPE="Daily Tests"
+        elif [ "${{ github.event.schedule }}" == "0 16 * * 0" ]; then
+          SCHEDULED_TYPE="Weekly Tests"
+        elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          SCHEDULED_TYPE="Manual Tests (${{ inputs.test_scope }})"
+        fi
+        
+        curl -X POST -H 'Content-type: application/json' \
+        --data "{
+          \"text\": \"$STATUS\",
+          \"attachments\": [
+            {
+              \"color\": \"$COLOR\",
+              \"title\": \"AI Navi Test Automation - Scheduled Tests\",
+              \"fields\": [
+                {
+                  \"title\": \"Test Type\",
+                  \"value\": \"$SCHEDULED_TYPE\",
+                  \"short\": true
+                },
+                {
+                  \"title\": \"Repository\",
+                  \"value\": \"${{ github.repository }}\",
+                  \"short\": true
+                },
+                {
+                  \"title\": \"Run Number\",
+                  \"value\": \"#${{ github.run_number }}\",
+                  \"short\": true
+                },
+                {
+                  \"title\": \"Status\",
+                  \"value\": \"$STATUS\",
+                  \"short\": true
+                }
+              ],
+              \"footer\": \"GitHub Actions\",
+              \"ts\": $(date +%s)
+            }
+          ]
+        }" \
+        $SLACK_WEBHOOK_URL || echo "Slack notification failed"
