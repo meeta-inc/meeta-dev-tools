@@ -4,15 +4,20 @@
   "description": "AI Navi Chat API Test Automation Tool with PactumJS",
   "main": "src/index.js",
   "scripts": {
-    "test": "node scripts/run-tests.js",
-    "test:grade": "node scripts/run-tests.js --grade",
-    "test:category": "node scripts/run-tests.js --category", 
-    "test:id": "node scripts/run-tests.js --id",
-    "upload": "node scripts/upload-to-gsheet.js",
-    "download": "node scripts/download-from-s3.js",
-    "report": "node scripts/generate-report.js",
-    "lint": "eslint src/**/*.js",
-    "start": "npm run upload && npm run test && npm run report"
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "npm run build && node dist/scripts/run-tests.js",
+    "test:js": "node scripts/run-tests.js",
+    "test:grade": "npm run build && node dist/scripts/run-tests.js --grade",
+    "test:category": "npm run build && node dist/scripts/run-tests.js --category", 
+    "test:id": "npm run build && node dist/scripts/run-tests.js --id",
+    "upload": "npm run build && node dist/scripts/upload-to-gsheet.js",
+    "download": "npm run build && node dist/scripts/download-from-s3.js",
+    "report": "npm run build && node dist/scripts/generate-report.js",
+    "lint": "eslint src/**/*.{js,ts}",
+    "type-check": "tsc --noEmit",
+    "start": "npm run upload && npm run test && npm run report",
+    "dev": "ts-node scripts/run-tests.js"
   },
   "keywords": [
     "api-testing",
@@ -35,6 +40,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
     "eslint": "^8.56.0"
   },
   "engines": {
