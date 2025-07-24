@@ -178,11 +178,99 @@ jobs:
           gsheet-upload: ${{ inputs.gsheet-upload }}
           environment: production
 
-  # 스케줄 실행 - 전체 테스트
-  scheduled-test:
-    name: Scheduled Full Test
+  # 메인 브랜치 push - 전체 테스트 (grade 구분 없음)
+  main-branch-test:
+    name: Main Branch Full Test
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'pactumjs_test_new/package-lock.json'
+          
+      - name: Install dependencies
+        run: |
+          cd pactumjs_test_new
+          npm ci
+      
+      - name: Build project
+        run: |
+          cd pactumjs_test_new
+          npm run build
+          cp -r config dist/config
+          cp -r src/utils dist/src/utils
+      
+      - name: Create production environment file
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          cd pactumjs_test_new
+          cat > .env << EOF
+          # API Configuration
+          API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
+          API_TIMEOUT=30000
+          API_RETRIES=3
+          
+          # Test Configuration
+          TEST_CONCURRENCY=1
+          REPORT_FORMAT=json
+          OUTPUT_DIR=./reports
+          
+          # AWS Credentials
+          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          AWS_REGION=ap-northeast-1
+          S3_BUCKET_NAME=meeta-ai-navi-test
+          S3_TEST_CASES_KEY=test-cases.csv
+          S3_RESULTS_KEY=test-results-main.csv
+          
+          # Google API Credentials
+          GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
+          GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
+          GOOGLE_SPREADSHEET_ID=1RPTo9ReD7XFCbedoI1f3pR6iKGfqYNmyWPWNvPgwn0U
+          GOOGLE_SHEET_RANGE=LLM표준!A5:L1000
+          GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
+          GOOGLE_DRIVE_FOLDER_ID=10Pv2qULZ9TOni3nOnWSfQhBbQhmIZq1l
+          
+          # Slack Webhook URL
+          SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+          SLACK_CHANNEL=#ci-test-results
+          SLACK_USERNAME=Main Branch Bot
+          
+          # Default Test Parameters
+          DEFAULT_CLIENT_ID=RS000001
+          DEFAULT_APP_ID=0001
+          DEFAULT_USER_ID=main_branch_user
+          EOF
+      
+      - name: Run all tests
+        run: |
+          cd pactumjs_test_new
+          node scripts/run-tests.js --concurrency=1
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: main-branch-test-results
+          path: pactumjs_test_new/reports/
+          retention-days: 30
+
+  # 스케줄 실행 - Grade별 테스트
+  scheduled-test:
+    name: Scheduled Grade Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
     
     strategy:
       matrix:
@@ -191,6 +279,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'pactumjs_test_new/package-lock.json'
+          
+      - name: Install dependencies
+        run: |
+          cd pactumjs_test_new
+          npm ci
+      
+      - name: Build project
+        run: |
+          cd pactumjs_test_new
+          npm run build
+          cp -r config dist/config
+          cp -r src/utils dist/src/utils
       
       - name: Create production environment file
         env:
@@ -239,18 +346,22 @@ jobs:
           EOF
       
       - name: Run scheduled test for ${{ matrix.grade }}
-        uses: ./pactumjs_test_new/.github/actions/test-automation
+        run: |
+          cd pactumjs_test_new
+          node scripts/run-tests.js --grade=${{ matrix.grade }} --concurrency=1
+          
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
         with:
-          test-type: grade
-          grade: ${{ matrix.grade }}
-          slack-notification: true
-          gsheet-upload: true
-          environment: production
+          name: scheduled-test-results-${{ matrix.grade }}
+          path: pactumjs_test_new/reports/
+          retention-days: 30
 
   # 결과 집계 및 최종 알림
   notify-results:
     name: Notify Final Results
-    needs: [scheduled-test]
+    needs: [main-branch-test, scheduled-test]
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
     
@@ -264,7 +375,10 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
-          if [ "${{ needs.scheduled-test.result }}" == "success" ]; then
+          MAIN_RESULT="${{ needs.main-branch-test.result || 'skipped' }}"
+          SCHEDULED_RESULT="${{ needs.scheduled-test.result || 'skipped' }}"
+          
+          if [[ "$MAIN_RESULT" == "success" && "$SCHEDULED_RESULT" == "success" ]] || [[ "$MAIN_RESULT" == "success" && "$SCHEDULED_RESULT" == "skipped" ]] || [[ "$MAIN_RESULT" == "skipped" && "$SCHEDULED_RESULT" == "success" ]]; then
             STATUS="✅ All tests completed successfully"
             COLOR="good"
           else
