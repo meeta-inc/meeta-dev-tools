@@ -3,7 +3,7 @@
     "testId": "2-1",
     "userRole": "User_S",
     "userId": "Hyunse0001",
-    "category": "수업일정",
+    "category": "general",
     "message": "授業のスケジュールを変更したいのですが",
     "grade": "elementary",
     "expectedBubbles": 3,

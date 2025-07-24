@@ -9,7 +9,7 @@ class ChatMessageRenderer {
   constructor(options = {}) {
     this.options = {
       brandColor: options.brandColor || '#12DE00',
-      userBubbleColor: options.userBubbleColor || '#007AFF',
+      userBubbleColor: options.userBubbleColor || '#EBEBEB',
       assistantBubbleColor: options.assistantBubbleColor || '#F5F5F5',
       templateDir: options.templateDir || path.join(__dirname, '../templates'),
       ...options
@@ -26,7 +26,73 @@ class ChatMessageRenderer {
       return '<div class="no-messages">No chat messages available</div>';
     }
 
-    return messages.map(message => this.renderSingleMessage(message, options)).join('\n');
+    // 메시지를 그룹으로 묶기 (연속된 같은 타입의 메시지들)
+    const groups = this.groupMessages(messages);
+    return groups.map(group => this.renderMessageGroup(group, options)).join('\n');
+  }
+
+  /**
+   * 메시지를 그룹으로 묶기
+   * @param {Array} messages - 메시지 배열
+   */
+  groupMessages(messages) {
+    const groups = [];
+    let currentGroup = null;
+
+    messages.forEach(message => {
+      if (!currentGroup || currentGroup.type !== message.type) {
+        // 새로운 그룹 시작
+        currentGroup = {
+          type: message.type,
+          messages: [message]
+        };
+        groups.push(currentGroup);
+      } else {
+        // 같은 타입이면 현재 그룹에 추가
+        currentGroup.messages.push(message);
+      }
+    });
+
+    return groups;
+  }
+
+  /**
+   * 메시지 그룹 렌더링
+   * @param {Object} group - 메시지 그룹
+   * @param {Object} options - 렌더링 옵션
+   */
+  renderMessageGroup(group, options = {}) {
+    const messageClass = this.getMessageClass(group.messages[0]);
+    
+    if (group.type === 'assistant') {
+      // Assistant 메시지 그룹: 여러 버블을 세로로 배치하고 마지막에 아바타
+      const bubbles = group.messages.map(message => {
+        const bubbleClass = this.getBubbleClass(message);
+        const content = this.formatMessageContent(message.content);
+        
+        return `
+          <div class="message-bubble ${bubbleClass}">
+            <div class="message-content">
+              ${content}
+            </div>
+          </div>
+        `;
+      }).join('\n');
+
+      return `
+        <div class="chat-message ${messageClass}">
+          <div class="message-container">
+            <div class="bubbles-container">
+              ${bubbles}
+            </div>
+            ${this.renderMessageAvatar(group.messages[0])}
+          </div>
+        </div>
+      `;
+    } else {
+      // User 메시지: 기존 방식 유지
+      return group.messages.map(message => this.renderSingleMessage(message, options)).join('\n');
+    }
   }
 
   /**
@@ -40,6 +106,15 @@ class ChatMessageRenderer {
     const timestamp = this.formatTimestamp(message.timestamp);
     const content = this.formatMessageContent(message.content);
 
+    // 사용자 메시지의 경우 metadata 제거
+    const metadataHtml = message.type === 'user' ? '' : `
+      <div class="message-metadata">
+        <span class="message-time">${timestamp}</span>
+        ${this.renderBubbleType(message.bubbleType)}
+        ${this.renderResponseTime(message.responseTime)}
+      </div>
+    `;
+
     return `
       <div class="chat-message ${messageClass}">
         <div class="message-container">
@@ -47,11 +122,7 @@ class ChatMessageRenderer {
             <div class="message-content">
               ${content}
             </div>
-            <div class="message-metadata">
-              <span class="message-time">${timestamp}</span>
-              ${this.renderBubbleType(message.bubbleType)}
-              ${this.renderResponseTime(message.responseTime)}
-            </div>
+            ${metadataHtml}
           </div>
           ${this.renderMessageAvatar(message)}
         </div>
@@ -322,280 +393,11 @@ class ChatMessageRenderer {
   }
 
   /**
-   * ChatMessage CSS 스타일 생성
+   * ChatMessage CSS 스타일 생성 - 비활성화됨 (chat-message.css 파일 사용)
    */
   generateChatMessageCSS() {
-    return `
-      /* Chat Message Styles */
-      .chat-message {
-        margin: 1rem 0;
-        display: flex;
-        align-items: flex-end;
-      }
-      
-      .message-user {
-        justify-content: flex-end;
-        flex-direction: row-reverse;
-      }
-      
-      .message-assistant {
-        justify-content: flex-start;
-      }
-      
-      .message-container {
-        display: flex;
-        align-items: flex-end;
-        max-width: 70%;
-        gap: 0.5rem;
-      }
-      
-      .message-bubble {
-        padding: 0.75rem 1rem;
-        border-radius: 1rem;
-        position: relative;
-        word-wrap: break-word;
-      }
-      
-      .bubble-user {
-        background-color: ${this.options.userBubbleColor};
-        color: white;
-        border-bottom-right-radius: 0.25rem;
-      }
-      
-      .bubble-assistant {
-        background-color: ${this.options.assistantBubbleColor};
-        color: #333;
-        border-bottom-left-radius: 0.25rem;
-        border: 1px solid #e0e0e0;
-      }
-      
-      .bubble-expected {
-        background-color: #f0f8ff;
-        color: #333;
-        border: 2px solid #4CAF50;
-      }
-      
-      .message-content {
-        line-height: 1.4;
-      }
-      
-      .message-metadata {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 0.25rem;
-        font-size: 0.75rem;
-        opacity: 0.7;
-      }
-      
-      .message-avatar {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
-      }
-      
-      .avatar-user {
-        background-color: ${this.options.userBubbleColor};
-      }
-      
-      .avatar-assistant {
-        background-color: ${this.options.brandColor};
-      }
-      
-      .avatar-expected {
-        background-color: #4CAF50;
-        color: white;
-      }
-      
-      .json-content {
-        background: rgba(0,0,0,0.05);
-        padding: 0.5rem;
-        border-radius: 0.25rem;
-        font-size: 0.875rem;
-        max-height: 200px;
-        overflow-y: auto;
-      }
-      
-      .bubble-type-label {
-        background: rgba(0,0,0,0.1);
-        padding: 0.125rem 0.375rem;
-        border-radius: 0.75rem;
-        font-size: 0.625rem;
-        text-transform: uppercase;
-        font-weight: 600;
-      }
-      
-      .response-time {
-        color: #666;
-        font-weight: 500;
-      }
-      
-      /* Comparison View Styles */
-      .comparison-container {
-        margin: 1.5rem 0;
-        border: 1px solid #e0e0e0;
-        border-radius: 0.5rem;
-        overflow: hidden;
-      }
-      
-      .comparison-header {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-bottom: 1px solid #e0e0e0;
-      }
-      
-      .comparison-grid {
-        display: grid;
-        grid-gap: 1rem;
-        padding: 1rem;
-      }
-      
-      .comparison-section h5 {
-        margin-bottom: 0.5rem;
-        color: #666;
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      
-      .diff-status {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        background: #f8f9fa;
-        border-top: 1px solid #e0e0e0;
-      }
-      
-      .diff-status.success {
-        background: #f0f8ff;
-        color: #4CAF50;
-      }
-      
-      .diff-status.error {
-        background: #fff5f5;
-        color: #F44336;
-      }
-      
-      .diff-toggle {
-        margin-left: auto;
-        background: none;
-        border: 1px solid currentColor;
-        color: inherit;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        cursor: pointer;
-        font-size: 0.75rem;
-      }
-      
-      .diff-details {
-        margin-top: 1rem;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-      }
-      
-      .diff-content {
-        background: #f8f9fa;
-        padding: 0.75rem;
-        border-radius: 0.25rem;
-        font-size: 0.75rem;
-        overflow-x: auto;
-      }
-      
-      /* Conversation Thread Styles */
-      .conversation-thread {
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-      }
-      
-      .conversation-item {
-        border: 1px solid #e0e0e0;
-        border-radius: 0.5rem;
-        overflow: hidden;
-      }
-      
-      .conversation-header {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-bottom: 1px solid #e0e0e0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      
-      .conversation-title {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-      
-      .conversation-status {
-        padding: 0.25rem 0.5rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-      
-      .status-passed {
-        background: #4CAF50;
-        color: white;
-      }
-      
-      .status-failed {
-        background: #F44336;
-        color: white;
-      }
-      
-      .status-unknown {
-        background: #757575;
-        color: white;
-      }
-      
-      .conversation-metadata {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        font-size: 0.875rem;
-        color: #666;
-      }
-      
-      .conversation-messages {
-        padding: 1rem;
-      }
-      
-      @media (max-width: 768px) {
-        .message-container {
-          max-width: 85%;
-        }
-        
-        .comparison-grid {
-          grid-template-columns: 1fr;
-        }
-        
-        .diff-details {
-          grid-template-columns: 1fr;
-        }
-        
-        .conversation-header {
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.5rem;
-        }
-        
-        .conversation-metadata {
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-      }
-    `;
+    // CSS 파일을 사용하므로 빈 문자열 반환
+    return '';
   }
 }
 

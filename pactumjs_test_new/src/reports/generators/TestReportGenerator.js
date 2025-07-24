@@ -39,7 +39,17 @@ class TestReportGenerator {
   async generateHTMLReport(testData, options = {}) {
     try {
       const reportId = `test-report-${Date.now()}`;
-      const reportData = this.processTestData(testData);
+      
+      // CSV 파서에서 온 데이터인지 확인 (이미 처리된 형태)
+      let reportData;
+      if (testData.metadata && testData.summary && testData.testResults) {
+        // 이미 처리된 데이터 (CSV 파서에서 온 경우)
+        reportData = testData;
+        reportData.metadata.reportId = reportId;
+      } else {
+        // 원본 데이터 (기존 mock 데이터 방식)
+        reportData = this.processTestData(testData);
+      }
       
       // HTML 템플릿 로드 및 렌더링
       const htmlContent = await this.renderMainTemplate(reportData, options);
@@ -161,25 +171,76 @@ class TestReportGenerator {
   extractChatMessages(test) {
     const messages = [];
     
-    // 요청 메시지 (사용자 스타일)
+    // 요청 메시지 (사용자 스타일) - request.body.message 우선 사용
     if (test.request) {
+      let userMessage = 'Request sent';
+      
+      if (test.request.body && typeof test.request.body === 'object' && test.request.body.message) {
+        // request.body.message가 있으면 그것을 사용
+        userMessage = test.request.body.message;
+      } else if (test.request.body && typeof test.request.body === 'string') {
+        // request.body가 문자열이면 그대로 사용
+        userMessage = test.request.body;
+      } else if (test.request.message) {
+        // request.message가 있으면 사용
+        userMessage = test.request.message;
+      }
+      
       messages.push({
         type: 'user',
-        content: test.request.body || test.request.message || 'Request sent',
+        content: userMessage,
         timestamp: test.timestamp || new Date().toISOString(),
         style: 'user'
       });
     }
     
-    // 응답 메시지 (봇 스타일)
+    // 응답 메시지 (봇 스타일) - JSON 배열 파싱하여 각 객체를 개별 메시지로 생성
     if (test.response) {
-      messages.push({
-        type: 'assistant',
-        content: test.response.body || test.response.message || 'Response received',
-        timestamp: test.timestamp || new Date().toISOString(),
-        style: 'assistant',
-        bubbleType: test.response.bubbleType || 'main'
-      });
+      const responseBody = test.response.body || test.response.message || 'Response received';
+      
+      try {
+        // 이중 이스케이프된 JSON 문자열 정규화
+        let normalizedJson = responseBody;
+        if (typeof responseBody === 'string' && responseBody.includes('""')) {
+          normalizedJson = responseBody.replace(/""/g, '"');
+        }
+        
+        // JSON 배열 파싱 시도
+        const parsedResponse = JSON.parse(normalizedJson);
+        
+        if (Array.isArray(parsedResponse)) {
+          // 배열의 각 객체를 개별 메시지로 생성
+          parsedResponse.forEach((item, index) => {
+            if (item && item.text) {
+              messages.push({
+                type: 'assistant',
+                content: item.text,
+                timestamp: test.timestamp || new Date().toISOString(),
+                style: 'assistant',
+                bubbleType: item.type || 'main'
+              });
+            }
+          });
+        } else {
+          // 배열이 아닌 경우 기본 처리
+          messages.push({
+            type: 'assistant',
+            content: responseBody,
+            timestamp: test.timestamp || new Date().toISOString(),
+            style: 'assistant',
+            bubbleType: test.response.bubbleType || 'main'
+          });
+        }
+      } catch (error) {
+        // JSON 파싱 실패시 원본 내용 그대로 표시
+        messages.push({
+          type: 'assistant',
+          content: responseBody,
+          timestamp: test.timestamp || new Date().toISOString(),
+          style: 'assistant',
+          bubbleType: test.response.bubbleType || 'main'
+        });
+      }
     }
     
     return messages;
@@ -239,38 +300,86 @@ class TestReportGenerator {
    * 스타일 파일 로드
    */
   async loadStyles() {
-    // CSS 파일들 로드는 다음 단계에서 구현
-    return '/* Styles will be loaded here */';
+    try {
+      const cssFiles = [
+        'main.css',
+        'responsive.css', 
+        'chat-message.css'
+      ];
+      
+      let combinedStyles = '';
+      
+      for (const cssFile of cssFiles) {
+        const cssPath = path.join(this.options.styleDir, cssFile);
+        if (fs.existsSync(cssPath)) {
+          const cssContent = fs.readFileSync(cssPath, 'utf-8');
+          combinedStyles += `\n/* ${cssFile} */\n${cssContent}\n`;
+        }
+      }
+      
+      return combinedStyles || '/* No styles found */';
+    } catch (error) {
+      logger.error('Failed to load styles', { error: error.message });
+      return '/* Error loading styles */';
+    }
   }
 
   /**
    * JavaScript 코드 생성
    */
   generateJavaScript(reportData) {
-    return `
+    const fs = require('fs');
+    const path = require('path');
+    
+    // JavaScript 데이터 바인딩
+    let jsContent = `
       // Report data
-      window.reportData = ${JSON.stringify(reportData)};
-      
-      // Initialize report functionality
-      document.addEventListener('DOMContentLoaded', function() {
-        console.log('Test report loaded successfully');
-        initializeFilters();
-        initializeSearch();
-        initializeCharts();
-      });
-      
-      function initializeFilters() {
-        // Filter implementation will be added in next phase
-      }
-      
-      function initializeSearch() {
-        // Search implementation will be added in next phase
-      }
-      
-      function initializeCharts() {
-        // Chart implementation will be added in next phase
-      }
+      window.reportData = ${JSON.stringify(reportData, null, 2)};
     `;
+    
+    // ChatMessageRenderer 클래스 로드
+    const chatRendererPath = path.join(__dirname, 'ChatMessageRenderer.js');
+    if (fs.existsSync(chatRendererPath)) {
+      let chatRendererContent = fs.readFileSync(chatRendererPath, 'utf-8');
+      // Node.js 전용 코드 제거 및 브라우저 호환 코드로 변환
+      chatRendererContent = chatRendererContent
+        .replace(/const fs = require\(['"]fs['"]\);?\s*/g, '')
+        .replace(/const path = require\(['"]path['"]\);?\s*/g, '')
+        .replace(/path\.join\([^)]+\)/g, '""')  // path.join 호출을 빈 문자열로 대체
+        .replace(/module\.exports = ChatMessageRenderer;?/g, 'window.ChatMessageRenderer = ChatMessageRenderer;');
+      jsContent += '\n' + chatRendererContent;
+    }
+    
+    // ComparisonEngine 클래스 로드
+    const comparisonPath = path.join(__dirname, 'ComparisonEngine.js');
+    if (fs.existsSync(comparisonPath)) {
+      let comparisonContent = fs.readFileSync(comparisonPath, 'utf-8');
+      // Node.js 전용 코드 제거
+      comparisonContent = comparisonContent
+        .replace(/const fs = require\(['"]fs['"]\);?\s*/g, '')
+        .replace(/const path = require\(['"]path['"]\);?\s*/g, '')
+        .replace(/module\.exports = ComparisonEngine;?/g, 'window.ComparisonEngine = ComparisonEngine;');
+      jsContent += '\n' + comparisonContent;
+    }
+    
+    // 각 JavaScript 컴포넌트 로드
+    const jsFiles = [
+      'dashboard.js',
+      'charts.js',
+      'test-results.js',
+      'main.js'
+    ];
+    
+    jsFiles.forEach(file => {
+      const jsPath = path.join(__dirname, '../js', file);
+      if (fs.existsSync(jsPath)) {
+        jsContent += '\n\n' + fs.readFileSync(jsPath, 'utf-8');
+      } else {
+        console.warn(`JavaScript file not found: ${jsPath}`);
+      }
+    });
+    
+    return jsContent;
   }
 
   // 유틸리티 메서드들
@@ -360,8 +469,89 @@ class TestReportGenerator {
   }
 
   renderTestResults(testResults) {
-    // HTML 렌더링은 다음 단계에서 구현
-    return '<!-- Test results will be rendered here -->';
+    if (!testResults || testResults.length === 0) {
+      return '<div class="no-results">No test results available</div>';
+    }
+
+    return testResults.map(test => {
+      const statusClass = test.status === 'passed' ? 'status-passed' : 'status-failed';
+      const statusIcon = test.status === 'passed' ? '✅' : '❌';
+      
+      // 채팅 메시지 렌더링
+      const chatMessages = this.extractChatMessages(test);
+      const messagesHtml = chatMessages.map(msg => {
+        if (msg.type === 'user') {
+          return `
+            <div class="chat-message message-user">
+              <div class="message-container">
+                <div class="message-bubble bubble bubble-user bubble-main">
+                  <div class="message-content">
+                    ${msg.content}
+                  </div>
+                </div>
+                <div class="message-avatar avatar-user">
+                  <span class="avatar-icon">👤</span>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="chat-message message-assistant">
+              <div class="message-container">
+                <div class="message-avatar avatar-assistant">
+                  <span class="avatar-icon">🤖</span>
+                </div>
+                <div class="message-bubble bubble bubble-assistant bubble-main">
+                  <div class="message-content">
+                    ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content, null, 2)}
+                  </div>
+                  <div class="message-metadata">
+                    <span class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</span>
+                    <span class="response-time">${test.responseTime}ms</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+
+      return `
+        <div class="conversation-item" data-test-id="${test.id}">
+          <div class="conversation-header" onclick="toggleConversation('${test.id}')">
+            <div class="conversation-title">
+              <h4>${test.title}</h4>
+              <span class="conversation-status ${statusClass}">${statusIcon} ${test.status.toUpperCase()}</span>
+            </div>
+            <div class="conversation-metadata">
+              <span class="conversation-time">${new Date(test.timestamp).toLocaleString()}</span>
+              <span class="message-count">${chatMessages.length} messages</span>
+              <span class="total-response-time">${test.responseTime}ms</span>
+            </div>
+            <div class="conversation-toggle">
+              <i class="fas fa-chevron-down"></i>
+            </div>
+          </div>
+          <div class="conversation-messages" style="display: none;">
+            <div class="chat-messages">
+              ${messagesHtml}
+            </div>
+            ${test.error ? `
+              <div class="error-section">
+                <div class="error-header">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <span class="error-title">Error Details</span>
+                </div>
+                <div class="error-content">
+                  <div class="error-message">${test.error}</div>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   renderDashboardStats(summary) {
