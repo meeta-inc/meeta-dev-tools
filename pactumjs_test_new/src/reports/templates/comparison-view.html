@@ -1,0 +1,361 @@
+<!-- Comparison View Template -->
+<div class="comparison-view-container">
+    <div class="comparison-header">
+        <div class="comparison-title">
+            <h3>Response Comparison</h3>
+            <span class="test-id">Test ID: {{TEST_ID}}</span>
+        </div>
+        
+        <div class="comparison-controls">
+            <div class="view-mode-selector">
+                <button class="view-mode-btn active" onclick="setComparisonView('{{TEST_ID}}', 'side-by-side')">
+                    <i class="fas fa-columns"></i> Side by Side
+                </button>
+                <button class="view-mode-btn" onclick="setComparisonView('{{TEST_ID}}', 'overlay')">
+                    <i class="fas fa-layer-group"></i> Overlay
+                </button>
+                <button class="view-mode-btn" onclick="setComparisonView('{{TEST_ID}}', 'unified')">
+                    <i class="fas fa-list"></i> Unified
+                </button>
+            </div>
+            
+            <div class="comparison-actions">
+                <button class="btn btn-sm btn-secondary" onclick="copyComparison('{{TEST_ID}}')">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="exportComparison('{{TEST_ID}}')">
+                    <i class="fas fa-download"></i> Export
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="analyzeComparison('{{TEST_ID}}')">
+                    <i class="fas fa-brain"></i> AI Analysis
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Summary -->
+    <div class="comparison-summary">
+        <div class="summary-stats">
+            <div class="stat-item {{MATCH_STATUS_CLASS}}">
+                <div class="stat-icon">{{MATCH_ICON}}</div>
+                <div class="stat-content">
+                    <span class="stat-label">Match Status</span>
+                    <span class="stat-value">{{MATCH_STATUS}}</span>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <span class="stat-label">Similarity</span>
+                    <span class="stat-value">{{SIMILARITY_PERCENTAGE}}%</span>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon">🔍</div>
+                <div class="stat-content">
+                    <span class="stat-label">Differences</span>
+                    <span class="stat-value">{{DIFFERENCES_COUNT}}</span>
+                </div>
+            </div>
+            
+            <div class="stat-item">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-content">
+                    <span class="stat-label">Severity</span>
+                    <span class="stat-value severity-{{SEVERITY_LEVEL}}">{{SEVERITY_TEXT}}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="similarity-chart">
+            <div class="similarity-circle">
+                <svg class="circle-progress" width="80" height="80">
+                    <circle cx="40" cy="40" r="30" stroke="#e0e0e0" stroke-width="8" fill="none"/>
+                    <circle cx="40" cy="40" r="30" stroke="{{BRAND_COLOR}}" stroke-width="8" fill="none"
+                            stroke-dasharray="188.4" stroke-dashoffset="{{SIMILARITY_OFFSET}}"
+                            stroke-linecap="round" transform="rotate(-90 40 40)"/>
+                </svg>
+                <div class="circle-text">
+                    <span class="circle-percentage">{{SIMILARITY_PERCENTAGE}}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Views -->
+    <div class="comparison-content">
+        <!-- Side by Side View -->
+        <div class="comparison-view side-by-side active" id="view-side-by-side-{{TEST_ID}}">
+            <div class="comparison-panes">
+                <div class="comparison-pane actual-pane">
+                    <div class="pane-header">
+                        <h4>
+                            <i class="fas fa-arrow-right"></i>
+                            Actual Response
+                        </h4>
+                        <div class="pane-meta">
+                            <span class="status-code status-{{ACTUAL_STATUS_CLASS}}">{{ACTUAL_STATUS_CODE}}</span>
+                            <span class="response-time">{{ACTUAL_RESPONSE_TIME}}ms</span>
+                        </div>
+                    </div>
+                    <div class="pane-content">
+                        <div class="response-headers">
+                            <details>
+                                <summary>Headers ({{ACTUAL_HEADERS_COUNT}})</summary>
+                                <pre class="headers-content">{{ACTUAL_HEADERS}}</pre>
+                            </details>
+                        </div>
+                        <div class="response-body">
+                            <div class="body-toolbar">
+                                <div class="format-selector">
+                                    <button class="format-btn active" onclick="formatResponse('{{TEST_ID}}', 'actual', 'json')">JSON</button>
+                                    <button class="format-btn" onclick="formatResponse('{{TEST_ID}}', 'actual', 'raw')">Raw</button>
+                                    <button class="format-btn" onclick="formatResponse('{{TEST_ID}}', 'actual', 'tree')">Tree</button>
+                                </div>
+                                <button class="copy-btn" onclick="copyContent('actual-body-{{TEST_ID}}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <pre class="response-content" id="actual-body-{{TEST_ID}}">{{ACTUAL_BODY_FORMATTED}}</pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="comparison-divider">
+                    <div class="divider-line"></div>
+                    <div class="divider-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                </div>
+                
+                <div class="comparison-pane expected-pane">
+                    <div class="pane-header">
+                        <h4>
+                            <i class="fas fa-check"></i>
+                            Expected Response
+                        </h4>
+                        <div class="pane-meta">
+                            <span class="status-code status-{{EXPECTED_STATUS_CLASS}}">{{EXPECTED_STATUS_CODE}}</span>
+                        </div>
+                    </div>
+                    <div class="pane-content">
+                        <div class="response-headers">
+                            <details>
+                                <summary>Headers ({{EXPECTED_HEADERS_COUNT}})</summary>
+                                <pre class="headers-content">{{EXPECTED_HEADERS}}</pre>
+                            </details>
+                        </div>
+                        <div class="response-body">
+                            <div class="body-toolbar">
+                                <div class="format-selector">
+                                    <button class="format-btn active" onclick="formatResponse('{{TEST_ID}}', 'expected', 'json')">JSON</button>
+                                    <button class="format-btn" onclick="formatResponse('{{TEST_ID}}', 'expected', 'raw')">Raw</button>
+                                    <button class="format-btn" onclick="formatResponse('{{TEST_ID}}', 'expected', 'tree')">Tree</button>
+                                </div>
+                                <button class="copy-btn" onclick="copyContent('expected-body-{{TEST_ID}}')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <pre class="response-content" id="expected-body-{{TEST_ID}}">{{EXPECTED_BODY_FORMATTED}}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overlay View -->
+        <div class="comparison-view overlay" id="view-overlay-{{TEST_ID}}" style="display: none;">
+            <div class="overlay-container">
+                <div class="overlay-controls">
+                    <div class="opacity-slider">
+                        <label>Overlay Opacity:</label>
+                        <input type="range" min="0" max="100" value="50" 
+                               oninput="adjustOverlayOpacity('{{TEST_ID}}', this.value)">
+                        <span class="opacity-value">50%</span>
+                    </div>
+                    <div class="overlay-toggle">
+                        <button class="toggle-btn" onclick="toggleOverlayMode('{{TEST_ID}}')">
+                            <i class="fas fa-eye"></i> Toggle View
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overlay-content">
+                    <div class="base-layer">
+                        <pre class="response-content">{{EXPECTED_BODY_FORMATTED}}</pre>
+                    </div>
+                    <div class="overlay-layer" style="opacity: 0.5;">
+                        <pre class="response-content">{{ACTUAL_BODY_FORMATTED}}</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unified View -->
+        <div class="comparison-view unified" id="view-unified-{{TEST_ID}}" style="display: none;">
+            <div class="unified-diff-container">
+                <div class="diff-legend">
+                    <div class="legend-item added">
+                        <span class="legend-color"></span>
+                        <span class="legend-text">Added in Actual</span>
+                    </div>
+                    <div class="legend-item removed">
+                        <span class="legend-color"></span>
+                        <span class="legend-text">Missing from Actual</span>
+                    </div>
+                    <div class="legend-item changed">
+                        <span class="legend-color"></span>
+                        <span class="legend-text">Modified</span>
+                    </div>
+                </div>
+                
+                <div class="unified-diff-content">
+                    <pre class="diff-content">{{UNIFIED_DIFF_CONTENT}}</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Differences Detail -->
+    <div class="differences-section">
+        <div class="differences-header">
+            <h4>
+                <i class="fas fa-list-ul"></i>
+                Differences Details ({{DIFFERENCES_COUNT}})
+            </h4>
+            <div class="differences-actions">
+                <button class="btn btn-sm btn-secondary" onclick="expandAllDiffs('{{TEST_ID}}')">
+                    <i class="fas fa-expand"></i> Expand All
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="collapseAllDiffs('{{TEST_ID}}')">
+                    <i class="fas fa-compress"></i> Collapse All
+                </button>
+            </div>
+        </div>
+        
+        <div class="differences-list">
+            {{DIFFERENCES_LIST}}
+        </div>
+    </div>
+
+    <!-- AI Analysis -->
+    <div class="ai-analysis-section" id="ai-analysis-{{TEST_ID}}" style="display: none;">
+        <div class="analysis-header">
+            <h4>
+                <i class="fas fa-brain"></i>
+                AI Analysis
+            </h4>
+            <div class="analysis-confidence">
+                <span class="confidence-label">Confidence:</span>
+                <div class="confidence-bar">
+                    <div class="confidence-fill" style="width: {{AI_CONFIDENCE}}%"></div>
+                </div>
+                <span class="confidence-value">{{AI_CONFIDENCE}}%</span>
+            </div>
+        </div>
+        
+        <div class="analysis-content">
+            <div class="analysis-summary">
+                <h5>Summary</h5>
+                <p>{{AI_SUMMARY}}</p>
+            </div>
+            
+            <div class="analysis-insights">
+                <h5>Key Insights</h5>
+                <ul class="insights-list">
+                    {{AI_INSIGHTS_LIST}}
+                </ul>
+            </div>
+            
+            <div class="analysis-recommendations">
+                <h5>Recommendations</h5>
+                <div class="recommendations-grid">
+                    {{AI_RECOMMENDATIONS}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Difference Item Template -->
+<div class="difference-item severity-{{SEVERITY}}" data-path="{{DIFF_PATH}}">
+    <div class="diff-item-header" onclick="toggleDiffItem('{{DIFF_ID}}')">
+        <div class="diff-item-info">
+            <span class="diff-type">{{DIFF_TYPE_FORMATTED}}</span>
+            <span class="diff-path">{{DIFF_PATH}}</span>
+        </div>
+        <div class="diff-item-meta">
+            <span class="diff-severity severity-{{SEVERITY}}">{{SEVERITY}}</span>
+            <i class="fas fa-chevron-down diff-toggle"></i>
+        </div>
+    </div>
+    
+    <div class="diff-item-content" id="{{DIFF_ID}}" style="display: none;">
+        <div class="diff-values">
+            {{ACTUAL_VALUE_SECTION}}
+            {{EXPECTED_VALUE_SECTION}}
+        </div>
+        
+        {{DIFF_CONTEXT}}
+        
+        <div class="diff-actions">
+            <button class="btn btn-sm btn-secondary" onclick="jumpToPath('{{TEST_ID}}', '{{DIFF_PATH}}')">
+                <i class="fas fa-crosshairs"></i> Jump to Location
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="copyDiffValue('{{DIFF_ID}}', 'actual')">
+                <i class="fas fa-copy"></i> Copy Actual
+            </button>
+            <button class="btn btn-sm btn-secondary" onclick="copyDiffValue('{{DIFF_ID}}', 'expected')">
+                <i class="fas fa-copy"></i> Copy Expected
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Value Section Template -->
+<div class="value-section {{VALUE_TYPE}}">
+    <div class="value-header">
+        <h6>{{VALUE_LABEL}}</h6>
+        <span class="value-type-badge">{{VALUE_TYPE_TEXT}}</span>
+    </div>
+    <div class="value-content">
+        <pre class="value-code">{{VALUE_FORMATTED}}</pre>
+    </div>
+</div>
+
+<!-- AI Insight Item Template -->
+<li class="insight-item insight-{{INSIGHT_TYPE}}">
+    <div class="insight-icon">
+        <i class="{{INSIGHT_ICON}}"></i>
+    </div>
+    <div class="insight-content">
+        <h6>{{INSIGHT_TITLE}}</h6>
+        <p>{{INSIGHT_DESCRIPTION}}</p>
+        {{INSIGHT_DETAILS}}
+    </div>
+</li>
+
+<!-- AI Recommendation Template -->
+<div class="recommendation-card priority-{{PRIORITY}}">
+    <div class="recommendation-header">
+        <div class="recommendation-title">
+            <i class="{{RECOMMENDATION_ICON}}"></i>
+            <h6>{{RECOMMENDATION_TITLE}}</h6>
+        </div>
+        <span class="priority-badge priority-{{PRIORITY}}">{{PRIORITY}}</span>
+    </div>
+    <div class="recommendation-content">
+        <p>{{RECOMMENDATION_DESCRIPTION}}</p>
+        {{RECOMMENDATION_CODE_EXAMPLE}}
+    </div>
+    <div class="recommendation-actions">
+        <button class="btn btn-sm btn-primary" onclick="implementRecommendation('{{RECOMMENDATION_ID}}')">
+            <i class="fas fa-magic"></i> Auto-fix
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="learnMore('{{RECOMMENDATION_ID}}')">
+            <i class="fas fa-info-circle"></i> Learn More
+        </button>
+    </div>
+</div>

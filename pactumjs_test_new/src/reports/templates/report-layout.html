@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{REPORT_TITLE}}</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNCIgZmlsbD0iIzEyREUwMCIvPgo8cGF0aCBkPSJNOCAxNkwyMCAyOEwyNCA4IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K">
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <style>
+        {{STYLES}}
+    </style>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading test report...</p>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div id="main-container" class="main-container" style="display: none;">
+        <!-- Header -->
+        <header class="report-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-container">
+                        <svg width="48" height="48" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="32" height="32" rx="4" fill="{{BRAND_COLOR}}"/>
+                            <path d="M8 16L20 28L24 8" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="logo-text">
+                        <h1>MeetA</h1>
+                        <span class="subtitle">PactumJS Test Report</span>
+                    </div>
+                </div>
+                
+                <div class="header-actions">
+                    <div class="report-info">
+                        <span class="generated-time">{{GENERATED_AT}}</span>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-secondary" onclick="exportReport()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <button class="btn btn-primary" onclick="refreshReport()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dashboard Stats -->
+        <section class="dashboard-section">
+            <div class="container">
+                <div class="stats-grid">
+                    {{DASHBOARD_STATS}}
+                </div>
+            </div>
+        </section>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs">
+            <div class="container">
+                <div class="tab-list">
+                    <button class="tab-button active" onclick="showTab('overview')">
+                        <i class="fas fa-chart-line"></i> Overview
+                    </button>
+                    <button class="tab-button" onclick="showTab('results')">
+                        <i class="fas fa-list"></i> Test Results
+                    </button>
+                    <button class="tab-button" onclick="showTab('comparison')">
+                        <i class="fas fa-balance-scale"></i> Comparison
+                    </button>
+                    <button class="tab-button" onclick="showTab('insights')">
+                        <i class="fas fa-lightbulb"></i> Insights
+                    </button>
+                </div>
+                
+                <div class="tab-controls">
+                    <div class="search-container">
+                        <input type="text" id="search-input" placeholder="Search tests..." onkeyup="filterTests()">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+                    
+                    <div class="filter-container">
+                        <select id="category-filter" onchange="filterTests()">
+                            <option value="">All Categories</option>
+                            <option value="Elementary">Elementary</option>
+                            <option value="Middle">Middle</option>
+                            <option value="High">High</option>
+                            <option value="Preschool">Preschool</option>
+                        </select>
+                        
+                        <select id="status-filter" onchange="filterTests()">
+                            <option value="">All Status</option>
+                            <option value="passed">Passed</option>
+                            <option value="failed">Failed</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="container">
+                <!-- Overview Tab -->
+                <div id="overview-tab" class="tab-content active">
+                    <div class="overview-grid">
+                        <div class="chart-section">
+                            <div class="chart-card">
+                                <h3>Success Rate Trend</h3>
+                                <canvas id="successRateChart" width="400" height="200"></canvas>
+                            </div>
+                            
+                            <div class="chart-card">
+                                <h3>Response Time Distribution</h3>
+                                <canvas id="responseTimeChart" width="400" height="200"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-section">
+                            <div class="summary-card">
+                                <h3>Test Summary</h3>
+                                <div id="test-summary-content">
+                                    <!-- Summary content will be injected here -->
+                                </div>
+                            </div>
+                            
+                            <div class="category-breakdown">
+                                <h3>Category Breakdown</h3>
+                                <canvas id="categoryChart" width="300" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Test Results Tab -->
+                <div id="results-tab" class="tab-content">
+                    <div class="results-header">
+                        <div class="results-info">
+                            <h2>Test Results</h2>
+                            <span class="results-count" id="results-count">Loading...</span>
+                        </div>
+                        
+                        <div class="results-actions">
+                            <button class="btn btn-secondary" onclick="expandAllTests()">
+                                <i class="fas fa-expand-arrows-alt"></i> Expand All
+                            </button>
+                            <button class="btn btn-secondary" onclick="collapseAllTests()">
+                                <i class="fas fa-compress-arrows-alt"></i> Collapse All
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="test-results-container" id="test-results-container">
+                        {{TEST_RESULTS}}
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination-container">
+                        <div class="pagination" id="pagination">
+                            <!-- Pagination controls will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comparison Tab -->
+                <div id="comparison-tab" class="tab-content">
+                    <div class="comparison-header">
+                        <h2>Response Comparison</h2>
+                        <p>Compare actual responses with expected results</p>
+                    </div>
+                    
+                    <div class="comparison-container" id="comparison-container">
+                        <!-- Comparison content will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Insights Tab -->
+                <div id="insights-tab" class="tab-content">
+                    <div class="insights-header">
+                        <h2>Test Insights</h2>
+                        <p>AI-powered analysis and recommendations</p>
+                    </div>
+                    
+                    <div class="insights-container">
+                        {{INSIGHTS_SECTION}}
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="report-footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-info">
+                        <p>&copy; 2024 MeetA Inc. All rights reserved.</p>
+                        <p>Generated by PactumJS Test Report Generator v1.0.0</p>
+                    </div>
+                    
+                    <div class="footer-links">
+                        <a href="#" onclick="showHelp()">Help</a>
+                        <a href="#" onclick="reportIssue()">Report Issue</a>
+                        <a href="#" onclick="viewSource()">View Source</a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="test-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Test Details</h3>
+                <button class="modal-close" onclick="closeModal('test-detail-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="test-detail-content">
+                <!-- Test detail content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Help</h3>
+                <button class="modal-close" onclick="closeModal('help-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="help-content">
+                    <h4>Navigation</h4>
+                    <ul>
+                        <li><strong>Overview:</strong> View summary statistics and charts</li>
+                        <li><strong>Test Results:</strong> Browse detailed test results</li>
+                        <li><strong>Comparison:</strong> Compare actual vs expected responses</li>
+                        <li><strong>Insights:</strong> View AI-powered analysis and recommendations</li>
+                    </ul>
+                    
+                    <h4>Filtering</h4>
+                    <ul>
+                        <li>Use the search box to find specific tests</li>
+                        <li>Filter by category or status using dropdown menus</li>
+                        <li>Click on test items to view detailed information</li>
+                    </ul>
+                    
+                    <h4>Export</h4>
+                    <ul>
+                        <li>Click the Export button to download the report</li>
+                        <li>Reports can be saved as HTML or PDF</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        {{SCRIPTS}}
+    </script>
+    
+    <!-- Keyboard Shortcuts -->
+    <script>
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'f':
+                        e.preventDefault();
+                        document.getElementById('search-input').focus();
+                        break;
+                    case 'r':
+                        e.preventDefault();
+                        refreshReport();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        exportReport();
+                        break;
+                }
+            }
+            
+            // Tab navigation
+            if (e.key >= '1' && e.key <= '4') {
+                const tabs = ['overview', 'results', 'comparison', 'insights'];
+                const tabIndex = parseInt(e.key) - 1;
+                if (tabIndex < tabs.length) {
+                    showTab(tabs[tabIndex]);
+                }
+            }
+        });
+    </script>
+
+    <!-- Analytics (optional) -->
+    <script>
+        // Track report usage
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'page_view', {
+                page_title: 'PactumJS Test Report',
+                page_location: window.location.href
+            });
+        }
+    </script>
+</body>
+</html>
