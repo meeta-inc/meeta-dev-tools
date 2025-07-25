@@ -13,7 +13,7 @@ module.exports = {
 
   // Test Configuration
   test: {
-    concurrency: parseInt(process.env.TEST_CONCURRENCY) || 5,
+    concurrency: parseInt(process.env.TEST_CONCURRENCY) || 1,
     reportFormat: process.env.REPORT_FORMAT || 'json',
     outputDir: process.env.OUTPUT_DIR || './reports'
   },

@@ -8,6 +8,7 @@ const TestCaseLoader = require('../src/data/test-case-loader');
 const S3Service = require('../src/integrations/s3/client');
 const SlackService = require('../src/integrations/slack/client');
 const GoogleSheetsService = require('../src/integrations/gsheet/client');
+const TestReportGenerator = require('../src/reports/generators/TestReportGenerator');
 const logger = require('../src/utils/logger');
 const config = require('../config/default');
 
@@ -21,6 +22,7 @@ class TestRunner {
     this.s3Service = new S3Service();
     this.slackService = new SlackService();
     this.sheetsService = new GoogleSheetsService();
+    this.reportGenerator = new TestReportGenerator();
     this.results = [];
   }
 
@@ -56,6 +58,12 @@ class TestRunner {
         options.noGsheet = true;
       } else if (arg.startsWith('--concurrency=')) {
         options.concurrency = parseInt(arg.split('=')[1]);
+      } else if (arg.startsWith('--interval=')) {
+        options.interval = parseInt(arg.split('=')[1]) * 1000; // 초 단위를 밀리초로 변환
+      } else if (arg.startsWith('--max-retries=')) {
+        options.maxRetries = parseInt(arg.split('=')[1]);
+      } else if (arg.startsWith('--additional-cases=')) {
+        filters.additionalCases = parseInt(arg.split('=')[1]);
       }
     });
 
@@ -111,88 +119,152 @@ class TestRunner {
   }
 
   /**
-   * Execute a single test case
+   * Execute a single test case with retry logic for 500 errors
    * @param {Object} testCase - Test case to execute
+   * @param {number} maxRetries - Maximum number of retries (default: 5)
    * @returns {Promise<Object>} Test result
    */
-  async executeTest(testCase) {
-    try {
-      const startTime = Date.now();
-      
-      // Prepare API parameters
-      const params = {
-        clientId: testCase.clientId || config.defaults.clientId,
-        appId: testCase.appId || config.defaults.appId,
-        gradeId: testCase.grade,
-        userId: testCase.userId,
-        message: testCase.message,
-        sessionId: testCase.sessionId
-      };
+  async executeTest(testCase, maxRetries = 5) {
+    let lastError = null;
+    let attempt = 0;
 
-      // Send API request
-      const response = await this.client.sendMessage(params);
-      
-      // Validate response
-      const validation = this.client.validateResponse(response);
+    while (attempt <= maxRetries) {
+      try {
+        const startTime = Date.now();
+        
+        // Prepare API parameters
+        const params = {
+          clientId: testCase.clientId || config.defaults.clientId,
+          appId: testCase.appId || config.defaults.appId,
+          gradeId: testCase.grade,
+          userId: testCase.userId,
+          message: testCase.message,
+          sessionId: testCase.sessionId
+        };
 
-      const result = {
-        testId: testCase.testId,
-        userRole: testCase.userRole,
-        userId: testCase.userId,
-        category: testCase.category,
-        message: testCase.message,
-        grade: testCase.grade,
-        statusCode: response.statusCode,
-        body: response.body,
-        responseTime: response.responseTime,
-        success: response.success,
-        validation: validation,
-        timestamp: new Date().toISOString(),
-        executionTime: Date.now() - startTime
-      };
+        // Send API request
+        const response = await this.client.sendMessage(params);
+        
+        // Check if we got a 500 error and should retry
+        if (response.statusCode >= 500 && response.statusCode < 600 && attempt < maxRetries) {
+          attempt++;
+          const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // 지수 백오프, 최대 10초
+          
+          logger.warn(`Test ${testCase.testId} failed with ${response.statusCode}, retrying (${attempt}/${maxRetries}) after ${retryDelay}ms`, {
+            statusCode: response.statusCode,
+            responseTime: response.responseTime,
+            body: response.body
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+        
+        // Validate response
+        const validation = this.client.validateResponse(response);
 
-      // Log result
-      const logLevel = response.success && validation.isValid ? 'info' : 'error';
-      logger[logLevel](`Test ${testCase.testId} completed`, {
-        statusCode: response.statusCode,
-        responseTime: response.responseTime,
-        success: response.success,
-        validationErrors: validation.errors
-      });
+        const result = {
+          testId: testCase.testId,
+          userRole: testCase.userRole,
+          userId: testCase.userId,
+          category: testCase.category,
+          message: testCase.message,
+          grade: testCase.grade,
+          statusCode: response.statusCode,
+          body: response.body,
+          responseTime: response.responseTime,
+          success: response.success,
+          validation: validation,
+          timestamp: new Date().toISOString(),
+          executionTime: Date.now() - startTime,
+          retryCount: attempt
+        };
 
-      return result;
+        // Log result
+        const logLevel = response.success && validation.isValid ? 'info' : 'error';
+        logger[logLevel](`Test ${testCase.testId} completed${attempt > 0 ? ` after ${attempt} retries` : ''}`, {
+          statusCode: response.statusCode,
+          responseTime: response.responseTime,
+          success: response.success,
+          validationErrors: validation.errors,
+          retryCount: attempt
+        });
 
-    } catch (error) {
-      logger.error(`Test ${testCase.testId} failed with exception`, {
-        error: error.message
-      });
+        return result;
 
-      return {
-        testId: testCase.testId,
-        userRole: testCase.userRole,
-        userId: testCase.userId,
-        category: testCase.category,
-        message: testCase.message,
-        grade: testCase.grade,
-        statusCode: 'ERROR',
-        body: { error: error.message },
-        responseTime: 0,
-        success: false,
-        validation: { isValid: false, errors: [error.message] },
-        timestamp: new Date().toISOString(),
-        executionTime: 0
-      };
+      } catch (error) {
+        lastError = error;
+        
+        // Only retry for network errors or specific error conditions
+        if (attempt < maxRetries && this.shouldRetryOnError(error)) {
+          attempt++;
+          const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+          
+          logger.warn(`Test ${testCase.testId} failed with exception, retrying (${attempt}/${maxRetries}) after ${retryDelay}ms`, {
+            error: error.message
+          });
+          
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+          continue;
+        }
+        
+        // Max retries reached or non-retryable error
+        break;
+      }
     }
+
+    // All retries exhausted
+    logger.error(`Test ${testCase.testId} failed after ${attempt} attempts`, {
+      error: lastError?.message || 'Unknown error'
+    });
+
+    return {
+      testId: testCase.testId,
+      userRole: testCase.userRole,
+      userId: testCase.userId,
+      category: testCase.category,
+      message: testCase.message,
+      grade: testCase.grade,
+      statusCode: 'ERROR',
+      body: { error: lastError?.message || 'Unknown error' },
+      responseTime: 0,
+      success: false,
+      validation: { isValid: false, errors: [lastError?.message || 'Unknown error'] },
+      timestamp: new Date().toISOString(),
+      executionTime: 0,
+      retryCount: attempt
+    };
   }
 
   /**
-   * Execute tests with concurrency control
+   * Determine if an error should trigger a retry
+   * @param {Error} error - The error that occurred
+   * @returns {boolean} Whether to retry
+   */
+  shouldRetryOnError(error) {
+    const retryableErrors = [
+      'ECONNRESET',
+      'ENOTFOUND',
+      'ECONNREFUSED',
+      'ETIMEDOUT',
+      'ECONNABORTED',
+      'socket hang up'
+    ];
+
+    return retryableErrors.some(retryableError => 
+      error.message.includes(retryableError) || 
+      error.code === retryableError
+    );
+  }
+
+  /**
+   * Execute tests with concurrency control and interval
    * @param {Array} testCases - Test cases to execute
    * @param {Object} options - Execution options
    * @returns {Promise<Array>} Test results
    */
   async executeTests(testCases, options = {}) {
-    const { dryRun = false, concurrency } = options;
+    const { dryRun = false, concurrency, interval = 30000, maxRetries = 5 } = options; // 30초 기본 인터벌, 5회 기본 리트라이
     const finalConcurrency = concurrency || config.test.concurrency;
     
     if (dryRun) {
@@ -205,14 +277,14 @@ class TestRunner {
       }));
     }
 
-    logger.info(`Executing ${testCases.length} tests with concurrency ${finalConcurrency}`);
+    logger.info(`Executing ${testCases.length} tests with concurrency ${finalConcurrency}, ${interval}ms interval, and max ${maxRetries} retries`);
 
     const results = [];
     const executing = [];
 
     for (let i = 0; i < testCases.length; i++) {
       // Add test to execution queue
-      const testPromise = this.executeTest(testCases[i]);
+      const testPromise = this.executeTest(testCases[i], maxRetries);
       executing.push(testPromise);
 
       // Wait for batch completion when reaching concurrency limit or end
@@ -223,6 +295,12 @@ class TestRunner {
 
         // Progress log
         logger.info(`Completed ${results.length}/${testCases.length} tests`);
+
+        // Add interval between test batches (except for the last batch)
+        if (i < testCases.length - 1) {
+          logger.info(`Waiting ${interval / 1000} seconds before next batch...`);
+          await new Promise(resolve => setTimeout(resolve, interval));
+        }
       }
     }
 
@@ -282,6 +360,48 @@ class TestRunner {
       
       logger.info('Results uploaded to S3', s3Result);
 
+      // Generate and upload HTML report
+      let htmlReportUrl = null;
+      try {
+        // Prepare data for HTML report generator
+        const reportData = {
+          metadata: {
+            generatedAt: new Date().toISOString(),
+            generatedBy: 'PactumJS Test Report Generator (Real Data)',
+            version: '1.0.0',
+            reportId: `report-${Date.now()}`,
+            dataSource: 'MeetA AI-NAVI Test Results',
+            totalRows: results.length
+          },
+          summary: summary,
+          testResults: results,
+          categories: this.categorizeResults(results),
+          insights: this.generateInsights(results)
+        };
+
+        // Generate HTML report
+        const htmlReport = await this.reportGenerator.generateHTMLReport(reportData);
+        
+        // Read the generated HTML file
+        const htmlContent = fs.readFileSync(htmlReport.htmlPath, 'utf-8');
+        
+        // Upload HTML to S3 for static hosting
+        const htmlS3Result = await this.s3Service.uploadHTMLReport(htmlContent, htmlReport.reportId);
+        htmlReportUrl = htmlS3Result.publicUrl;
+        
+        logger.info('HTML report uploaded to S3', {
+          reportId: htmlReport.reportId,
+          publicUrl: htmlReportUrl
+        });
+
+        // Add HTML report URL to summary
+        summary.htmlReportUrl = htmlReportUrl;
+
+      } catch (error) {
+        logger.error(`Failed to generate/upload HTML report: ${error.message}`);
+        // Don't throw - HTML report failure shouldn't break the test process
+      }
+
       // Upload to Google Sheets
       let sheetsUrl = null;
       if (!options.noGsheet) {
@@ -312,7 +432,8 @@ class TestRunner {
         bucket: s3Result.bucket,
         key: s3Result.key,
         summary: summary,
-        sheetsUrl: sheetsUrl
+        sheetsUrl: sheetsUrl,
+        htmlReportUrl: htmlReportUrl
       }));
 
     } catch (error) {
@@ -359,6 +480,69 @@ class TestRunner {
   }
 
   /**
+   * Categorize results by category
+   * @param {Array} results - Test results
+   * @returns {Object} Categorized results
+   */
+  categorizeResults(results) {
+    const categories = {};
+    
+    results.forEach(result => {
+      const category = result.category || 'General';
+      if (!categories[category]) {
+        categories[category] = [];
+      }
+      categories[category].push(result);
+    });
+
+    return categories;
+  }
+
+  /**
+   * Generate insights from test results
+   * @param {Array} results - Test results
+   * @returns {Array} Generated insights
+   */
+  generateInsights(results) {
+    const insights = [];
+    const summary = this.generateSummary(results);
+    
+    // Success rate insight
+    if (summary.passed / summary.total * 100 < 80) {
+      insights.push({
+        type: 'Performance',
+        severity: 'high',
+        message: `Success rate is ${(summary.passed / summary.total * 100).toFixed(1)}%, which is below acceptable threshold`,
+        recommendation: 'Review failed test cases and investigate API stability'
+      });
+    }
+
+    // Response time insight
+    const avgResponseTime = results.reduce((sum, r) => sum + (r.responseTime || 0), 0) / results.length;
+    if (avgResponseTime > 5000) {
+      insights.push({
+        type: 'Performance',
+        severity: 'medium',
+        message: `Average response time is ${Math.round(avgResponseTime)}ms, which is quite slow`,
+        recommendation: 'Optimize API performance and consider caching strategies'
+      });
+    }
+
+    // Category insights
+    const categories = Object.keys(this.categorizeResults(results));
+    if (categories.length > 3) {
+      insights.push({
+        type: 'Quality',
+        severity: 'low',
+        message: `Tests cover ${categories.length} different categories`,
+        recommendation: 'Good test coverage across multiple categories'
+      });
+    }
+
+    return insights;
+  }
+
+  /**
    * Main execution function
    * @returns {Promise<void>}
    */
@@ -377,7 +561,20 @@ class TestRunner {
       
       // Apply filters
       this.loader.testCases = allTestCases;
-      const testCases = this.loader.filter(filters);
+      let testCases = this.loader.filter(filters);
+
+      // Handle additional cases for single test
+      if (filters.testId && filters.additionalCases && filters.additionalCases > 0) {
+        const targetIndex = allTestCases.findIndex(tc => tc.testId === filters.testId);
+        if (targetIndex !== -1) {
+          const additionalTests = [];
+          for (let i = 1; i <= filters.additionalCases && targetIndex + i < allTestCases.length; i++) {
+            additionalTests.push(allTestCases[targetIndex + i]);
+          }
+          testCases = [...testCases, ...additionalTests];
+          logger.info(`Added ${additionalTests.length} additional test cases after ${filters.testId}`);
+        }
+      }
 
       if (testCases.length === 0) {
         logger.warn('No test cases found matching criteria');
@@ -405,7 +602,11 @@ class TestRunner {
       // Determine test type for sheet naming
       let testType = 'Results';
       if (filters.testId) {
-        testType = 'Single';
+        if (filters.additionalCases && filters.additionalCases > 0) {
+          testType = `Single_Plus_${filters.additionalCases}`;
+        } else {
+          testType = 'Single';
+        }
       } else if (filters.grade) {
         testType = `Grade_${filters.grade}`;
       } else if (filters.category) {
@@ -425,9 +626,21 @@ class TestRunner {
       if (!options.noSlack) {
         await this.slackService.sendTestSummary(summary);
         
-        // Send detailed results for single tests
-        if (filters.testId && results.length === 1) {
-          await this.slackService.sendSingleTestDetails(results[0], summary);
+        // Send detailed results for single tests or single with additional cases
+        if (filters.testId) {
+          if (filters.additionalCases && filters.additionalCases > 0) {
+            // Send summary for single test with additional cases
+            const message = `📊 Single Test + ${filters.additionalCases} Additional Cases Completed\n` +
+                          `Test ${filters.testId} and ${filters.additionalCases} additional cases completed\n` +
+                          `• Total Executed: ${results.length}\n` +
+                          `• Passed: ${summary.passed}\n` +
+                          `• Failed: ${summary.failed}\n` +
+                          `• Success Rate: ${(summary.passed / results.length * 100).toFixed(1)}%`;
+            
+            await this.slackService.sendMessage(message);
+          } else if (results.length === 1) {
+            await this.slackService.sendSingleTestDetails(results[0], summary);
+          }
         }
       }
 
