@@ -1,0 +1,267 @@
+<!-- Chat Message Template -->
+<div class="chat-message {{MESSAGE_CLASS}}">
+    <div class="message-container">
+        <div class="message-bubble {{BUBBLE_CLASS}}">
+            <div class="message-content">
+                {{MESSAGE_CONTENT}}
+            </div>
+            <div class="message-metadata">
+                <span class="message-time">{{TIMESTAMP}}</span>
+                {{BUBBLE_TYPE_LABEL}}
+                {{RESPONSE_TIME}}
+            </div>
+        </div>
+        <div class="message-avatar {{AVATAR_CLASS}}">
+            <span class="avatar-icon">{{AVATAR_ICON}}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Conversation Thread Template -->
+<div class="conversation-item" data-conversation-id="{{CONVERSATION_ID}}">
+    <div class="conversation-header" onclick="toggleConversation('{{CONVERSATION_ID}}')">
+        <div class="conversation-title">
+            <h4>{{CONVERSATION_TITLE}}</h4>
+            <span class="conversation-status status-{{STATUS}}">{{STATUS_TEXT}}</span>
+        </div>
+        <div class="conversation-metadata">
+            <span class="conversation-time">{{CONVERSATION_TIME}}</span>
+            <span class="message-count">{{MESSAGE_COUNT}} messages</span>
+            {{TOTAL_RESPONSE_TIME}}
+            <i class="fas fa-chevron-down conversation-toggle"></i>
+        </div>
+    </div>
+    
+    <div class="conversation-messages" id="messages-{{CONVERSATION_ID}}" style="display: none;">
+        {{CONVERSATION_MESSAGES}}
+    </div>
+    
+    {{COMPARISON_VIEW}}
+</div>
+
+<!-- Message Comparison Template -->
+<div class="message-comparison">
+    <div class="comparison-header">
+        <h5>Request vs Response</h5>
+        <div class="comparison-actions">
+            <button class="btn btn-sm" onclick="copyToClipboard('request-{{TEST_ID}}')">
+                <i class="fas fa-copy"></i> Copy Request
+            </button>
+            <button class="btn btn-sm" onclick="copyToClipboard('response-{{TEST_ID}}')">
+                <i class="fas fa-copy"></i> Copy Response
+            </button>
+        </div>
+    </div>
+    
+    <div class="comparison-grid">
+        <div class="comparison-section">
+            <h6>Request</h6>
+            <div class="chat-message message-user">
+                <div class="message-container">
+                    <div class="message-bubble bubble-user">
+                        <div class="message-content" id="request-{{TEST_ID}}">
+                            {{REQUEST_CONTENT}}
+                        </div>
+                    </div>
+                    <div class="message-avatar avatar-user">
+                        <span class="avatar-icon">👤</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="comparison-section">
+            <h6>Actual Response</h6>
+            <div class="chat-message message-assistant">
+                <div class="message-container">
+                    <div class="message-bubble bubble-assistant {{RESPONSE_STATUS_CLASS}}">
+                        <div class="message-content" id="response-{{TEST_ID}}">
+                            {{RESPONSE_CONTENT}}
+                        </div>
+                    </div>
+                    <div class="message-avatar avatar-assistant">
+                        <span class="avatar-icon">🤖</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {{EXPECTED_RESPONSE_SECTION}}
+    </div>
+    
+    {{DIFF_HIGHLIGHTS}}
+</div>
+
+<!-- Expected Response Section Template -->
+<div class="comparison-section">
+    <h6>Expected Response</h6>
+    <div class="chat-message message-assistant expected">
+        <div class="message-container">
+            <div class="message-bubble bubble-expected">
+                <div class="message-content" id="expected-{{TEST_ID}}">
+                    {{EXPECTED_CONTENT}}
+                </div>
+            </div>
+            <div class="message-avatar avatar-expected">
+                <span class="avatar-icon">✓</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Diff Status Template -->
+<div class="diff-status {{DIFF_STATUS_CLASS}}">
+    <div class="diff-status-header">
+        <span class="diff-icon">{{DIFF_ICON}}</span>
+        <span class="diff-message">{{DIFF_MESSAGE}}</span>
+        <div class="diff-actions">
+            {{SIMILARITY_SCORE}}
+            <button class="diff-toggle" onclick="toggleDiffDetails('{{TEST_ID}}')">
+                <span class="toggle-text">Show Details</span>
+                <i class="fas fa-chevron-down"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="diff-details" id="diff-details-{{TEST_ID}}" style="display: none;">
+        <div class="diff-tabs">
+            <button class="diff-tab active" onclick="showDiffTab('{{TEST_ID}}', 'side-by-side')">
+                Side by Side
+            </button>
+            <button class="diff-tab" onclick="showDiffTab('{{TEST_ID}}', 'unified')">
+                Unified
+            </button>
+            <button class="diff-tab" onclick="showDiffTab('{{TEST_ID}}', 'json')">
+                JSON Tree
+            </button>
+        </div>
+        
+        <div class="diff-content">
+            <div class="diff-view" id="diff-side-by-side-{{TEST_ID}}">
+                <div class="diff-column">
+                    <h6>Actual</h6>
+                    <pre class="diff-code actual">{{ACTUAL_FORMATTED}}</pre>
+                </div>
+                <div class="diff-column">
+                    <h6>Expected</h6>
+                    <pre class="diff-code expected">{{EXPECTED_FORMATTED}}</pre>
+                </div>
+            </div>
+            
+            <div class="diff-view" id="diff-unified-{{TEST_ID}}" style="display: none;">
+                <pre class="diff-code unified">{{UNIFIED_DIFF}}</pre>
+            </div>
+            
+            <div class="diff-view" id="diff-json-{{TEST_ID}}" style="display: none;">
+                <div class="json-tree-container">
+                    {{JSON_TREE_DIFF}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Similarity Score Template -->
+<div class="similarity-score">
+    <div class="score-circle {{SCORE_CLASS}}">
+        <span class="score-value">{{SCORE_PERCENTAGE}}%</span>
+    </div>
+    <span class="score-label">Similarity</span>
+</div>
+
+<!-- JSON Tree Node Template -->
+<div class="json-tree-node {{NODE_CLASS}}">
+    <div class="tree-node-header" onclick="toggleTreeNode('{{NODE_ID}}')">
+        <i class="fas fa-chevron-right tree-toggle"></i>
+        <span class="node-key">{{NODE_KEY}}</span>
+        <span class="node-type">{{NODE_TYPE}}</span>
+        {{DIFF_INDICATOR}}
+    </div>
+    <div class="tree-node-content" id="{{NODE_ID}}" style="display: none;">
+        {{NODE_CHILDREN}}
+    </div>
+</div>
+
+<!-- Message Actions Template -->
+<div class="message-actions">
+    <button class="action-btn" onclick="copyMessage('{{MESSAGE_ID}}')" title="Copy message">
+        <i class="fas fa-copy"></i>
+    </button>
+    <button class="action-btn" onclick="shareMessage('{{MESSAGE_ID}}')" title="Share message">
+        <i class="fas fa-share"></i>
+    </button>
+    <button class="action-btn" onclick="reportMessage('{{MESSAGE_ID}}')" title="Report issue">
+        <i class="fas fa-flag"></i>
+    </button>
+</div>
+
+<!-- Typing Indicator Template -->
+<div class="chat-message message-assistant typing">
+    <div class="message-container">
+        <div class="message-bubble bubble-assistant">
+            <div class="typing-indicator">
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+                <span class="typing-dot"></span>
+            </div>
+        </div>
+        <div class="message-avatar avatar-assistant">
+            <span class="avatar-icon">🤖</span>
+        </div>
+    </div>
+</div>
+
+<!-- Error Message Template -->
+<div class="chat-message message-error">
+    <div class="message-container">
+        <div class="message-bubble bubble-error">
+            <div class="error-header">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span class="error-title">{{ERROR_TYPE}}</span>
+            </div>
+            <div class="error-content">
+                <p class="error-message">{{ERROR_MESSAGE}}</p>
+                {{ERROR_DETAILS}}
+            </div>
+            <div class="error-actions">
+                <button class="btn btn-sm btn-secondary" onclick="retryTest('{{TEST_ID}}')">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="viewErrorDetails('{{TEST_ID}}')">
+                    <i class="fas fa-info-circle"></i> Details
+                </button>
+            </div>
+        </div>
+        <div class="message-avatar avatar-error">
+            <span class="avatar-icon">⚠️</span>
+        </div>
+    </div>
+</div>
+
+<!-- Success Message Template -->
+<div class="chat-message message-success">
+    <div class="message-container">
+        <div class="message-bubble bubble-success">
+            <div class="success-header">
+                <i class="fas fa-check-circle"></i>
+                <span class="success-title">Test Passed</span>
+            </div>
+            <div class="success-content">
+                <p>{{SUCCESS_MESSAGE}}</p>
+                <div class="success-metrics">
+                    <span class="metric">
+                        <i class="fas fa-clock"></i>
+                        {{RESPONSE_TIME}}ms
+                    </span>
+                    <span class="metric">
+                        <i class="fas fa-tachometer-alt"></i>
+                        {{STATUS_CODE}}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="message-avatar avatar-success">
+            <span class="avatar-icon">✅</span>
+        </div>
+    </div>
+</div>
