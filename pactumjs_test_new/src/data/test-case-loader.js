@@ -83,7 +83,7 @@ class TestCaseLoader {
           const row = data[i];
           if (row.length >= 5 && row[4]) {
             const testCase = {
-              testId: `${grade.toUpperCase()}_${row[1] || `${i}`}`,
+              testId: `${(grade || 'UNKNOWN').toUpperCase()}_${row[1] || `${i}`}`,
               userRole: 'User_S',
               userId: 'faq_user_001',
               category: row[2] || 'general',
