@@ -412,8 +412,9 @@ class TestRunner {
         summary.htmlReportUrl = htmlReportUrl;
 
       } catch (error) {
-        logger.error(`Failed to generate/upload HTML report: ${error.message}`);
+        logger.warn(`Failed to generate/upload HTML report: ${error.message}`);
         // Don't throw - HTML report failure shouldn't break the test process
+        console.warn(`⚠️  HTML report generation failed: ${error.message}`);
       }
 
       // Upload to Google Sheets
