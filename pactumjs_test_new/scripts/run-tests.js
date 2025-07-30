@@ -64,6 +64,8 @@ class TestRunner {
         options.maxRetries = parseInt(arg.split('=')[1]);
       } else if (arg.startsWith('--additional-cases=')) {
         filters.additionalCases = parseInt(arg.split('=')[1]);
+      } else if (arg.startsWith('--json-file=')) {
+        options.jsonFile = arg.split('=')[1];
       }
     });
 
@@ -92,6 +94,18 @@ class TestRunner {
         fs.writeFileSync(tempFile, csvData);
         testCases = this.loader.loadFromCSV(tempFile);
         fs.unlinkSync(tempFile); // Clean up
+      } else if (options.jsonFile) {
+        // Load from JSON file
+        const jsonPath = path.join(__dirname, '..', options.jsonFile);
+        logger.info('Loading test cases from JSON', { path: jsonPath });
+        
+        if (fs.existsSync(jsonPath)) {
+          const jsonData = fs.readFileSync(jsonPath, 'utf-8');
+          testCases = JSON.parse(jsonData);
+          logger.info(`Loaded ${testCases.length} test cases from JSON`);
+        } else {
+          throw new Error(`JSON file not found: ${jsonPath}`);
+        }
       } else {
         // Load from local files
         const csvPath = path.join(__dirname, '../src/data/csv/basic-test-case.csv');

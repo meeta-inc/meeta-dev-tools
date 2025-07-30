@@ -10,6 +10,12 @@ DURATION ?= 60
 TARGET_RPS ?= 2
 NO_SLACK ?= false
 
+# FAQ test configuration
+INTERVAL ?= 1
+MAX_RETRIES ?= 5
+JSON_FILE ?= src/data/json/all-test-cases.json
+FAQ_JSON_FILE = src/data/json/314-chatbot-faq-test-cases.json
+
 # Colors for output
 GREEN = \033[0;32m
 YELLOW = \033[0;33m
@@ -31,7 +37,7 @@ help: ## Display this help message
 	@echo "  make test-grade GRADE=middle"
 	@echo "  make test-category CATEGORY='授業・カリキュラム'"
 	@echo "  make load-test CONCURRENCY=10 DURATION=120"
-	@echo "  make performance-test GRADE=high"
+	@echo "  make faq-all"
 
 install: ## Install dependencies
 	@echo "$(GREEN)Installing dependencies...$(NC)"
@@ -81,13 +87,18 @@ test-category: build ## Run tests filtered by category (requires CATEGORY)
 		node scripts/run-tests.js --category="$(CATEGORY)" --concurrency=1; \
 	fi
 
-test-all: build ## Run all available tests
-	@echo "$(GREEN)Running all tests...$(NC)"
+test-all: build ## Run all available tests (including FAQ)
+	@echo "$(GREEN)Running all tests (general + FAQ)...$(NC)"
+	@echo "Merging test cases..."
+	@node scripts/merge-test-cases.js
+	@echo ""
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --concurrency=1 --no-slack; \
+		node scripts/run-tests.js --json-file=src/data/json/merged-test-cases.json --concurrency=1 --no-slack; \
 	else \
-		node scripts/run-tests.js --concurrency=1; \
+		node scripts/run-tests.js --json-file=src/data/json/merged-test-cases.json --concurrency=1; \
 	fi
+	@echo ""
+	@echo "$(GREEN)All tests completed!$(NC)"
 
 test-dry-run: build ## Run tests in dry-run mode (no actual API calls)
 	@echo "$(GREEN)Running dry-run tests for grade: $(GRADE)$(NC)"
@@ -217,6 +228,127 @@ dev-setup: clean install build generate-faq ## Complete development setup
 
 dev-test: ## Quick development test
 	@$(MAKE) test-dry-run GRADE=elementary
+
+# =============================================================================
+# FAQ Test Commands (314 Chatbot FAQ Test Cases)
+# =============================================================================
+
+faq-all: ## Run all 47 FAQ test cases
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)47개 FAQ 테스트 전체 실행 시작$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "테스트 파일: $(FAQ_JSON_FILE)"
+	@echo "병렬 실행: 1개 (순차 실행)"
+	@echo "인터벌: $(INTERVAL)초"
+	@echo "최대 재시도: $(MAX_RETRIES)회"
+	@echo ""
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--concurrency=1 \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+	@echo ""
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)FAQ 전체 테스트 완료!$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+
+faq-single: ## Run a single FAQ test (requires ID)
+	@if [ -z "$(ID)" ]; then \
+		echo "$(RED)Error: 테스트 ID를 지정해주세요$(NC)"; \
+		echo "사용법: make faq-single ID=INFANT-001"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "$(YELLOW)FAQ 단일 테스트 실행: $(ID)$(NC)"
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "테스트 파일: $(FAQ_JSON_FILE)"
+	@echo "테스트 ID: $(ID)"
+	@echo ""
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--id=$(ID) \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+	@echo ""
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "$(YELLOW)FAQ 단일 테스트 완료!$(NC)"
+	@echo "$(YELLOW)========================================$(NC)"
+
+faq-single-plus: ## Run a specific FAQ test + N additional tests (requires ID, N)
+	@if [ -z "$(ID)" ]; then \
+		echo "$(RED)Error: 테스트 ID를 지정해주세요$(NC)"; \
+		echo "사용법: make faq-single-plus ID=ELEM-005 N=3"; \
+		exit 1; \
+	fi
+	@if [ -z "$(N)" ]; then \
+		echo "$(RED)Error: 추가 테스트 개수를 지정해주세요$(NC)"; \
+		echo "사용법: make faq-single-plus ID=ELEM-005 N=3"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "$(YELLOW)FAQ 테스트 실행: $(ID) + $(N)개 추가$(NC)"
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "테스트 파일: $(FAQ_JSON_FILE)"
+	@echo "시작 테스트 ID: $(ID)"
+	@echo "추가 테스트 개수: $(N)개"
+	@echo "인터벌: $(INTERVAL)초"
+	@echo ""
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--id=$(ID) \
+		--additional-cases=$(N) \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+	@echo ""
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "$(YELLOW)FAQ 테스트 $(ID) + $(N)개 완료!$(NC)"
+	@echo "$(YELLOW)========================================$(NC)"
+
+# FAQ test shortcuts
+test-infant: ## Quick test for infant FAQ (INFANT-001)
+	@$(MAKE) faq-single ID=INFANT-001
+
+test-elem: ## Quick test for elementary FAQ (ELEM-001)
+	@$(MAKE) faq-single ID=ELEM-001
+
+test-middle: ## Quick test for middle school FAQ (MIDDLE-001)
+	@$(MAKE) faq-single ID=MIDDLE-001
+
+test-high: ## Quick test for high school FAQ (HIGH-001)
+	@$(MAKE) faq-single ID=HIGH-001
+
+# Grade-specific FAQ tests
+test-all-infant: ## Run all infant FAQ tests (15 cases)
+	@echo "$(GREEN)유아 FAQ 테스트 15개 실행$(NC)"
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--grade=preschool \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+
+test-all-elem: ## Run all elementary FAQ tests (11 cases)
+	@echo "$(GREEN)초등 FAQ 테스트 11개 실행$(NC)"
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--grade=elementary \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+
+test-all-middle: ## Run all middle school FAQ tests (8 cases)
+	@echo "$(GREEN)중등 FAQ 테스트 8개 실행$(NC)"
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--grade=middle \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+
+test-all-high: ## Run all high school FAQ tests (12 cases)
+	@echo "$(GREEN)고등 FAQ 테스트 12개 실행$(NC)"
+	node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--grade=high \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
 
 # Show default target
 .DEFAULT_GOAL := help

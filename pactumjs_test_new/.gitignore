@@ -36,3 +36,6 @@ coverage/
 
 # Google Service Account
 config/service-account.json
+
+# Merged test cases (generated file)
+src/data/json/merged-test-cases.json

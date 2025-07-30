@@ -8,12 +8,12 @@ const TestReportGenerator = require('../src/reports/generators/TestReportGenerat
 const CSVParser = require('../src/reports/utils/csvParser');
 
 /**
- * CSV에서 HTML 리포트 생성 스크립트
+ * FAQ CSV에서 HTML 리포트 생성 스크립트
  */
-async function generateHTMLFromCSV() {
-  const csvFilePath = './temp-test-result.csv';
+async function generateHTMLFromFAQCSV() {
+  const csvFilePath = '../../temp-faq-result.csv';
   
-  console.log('🚀 Starting HTML Report Generation from CSV...\n');
+  console.log('🚀 Starting FAQ HTML Report Generation from CSV...\n');
   
   try {
     // 1. CSV 파일 읽기
@@ -22,13 +22,13 @@ async function generateHTMLFromCSV() {
     }
     
     const csvContent = fs.readFileSync(csvFilePath, 'utf-8');
-    console.log('✅ CSV file loaded successfully');
+    console.log('✅ FAQ CSV file loaded successfully');
     
     // 2. CSV 파싱
     const csvParser = new CSVParser();
     const parsedData = csvParser.parseCSV(csvContent);
     
-    console.log(`📊 Parsed ${parsedData.testResults.length} test results`);
+    console.log(`📊 Parsed ${parsedData.testResults.length} FAQ test results`);
     console.log(`📈 Success Rate: ${parsedData.summary.successRate}%`);
     
     // 3. HTML 리포트 생성
@@ -39,7 +39,7 @@ async function generateHTMLFromCSV() {
     
     const reportResult = await generator.generateHTMLReport(parsedData);
     
-    console.log('✅ HTML Report generated successfully!');
+    console.log('✅ FAQ HTML Report generated successfully!');
     console.log(`📄 Report ID: ${reportResult.reportId}`);
     console.log(`📁 HTML Path: ${reportResult.htmlPath}`);
     console.log(`📊 Test Count: ${reportResult.reportData.summary.totalTests}`);
@@ -50,7 +50,7 @@ async function generateHTMLFromCSV() {
     const openCommand = process.platform === 'darwin' ? 'open' : 
                       process.platform === 'win32' ? 'start' : 'xdg-open';
     
-    console.log(`🌐 Opening HTML report in browser...`);
+    console.log(`🌐 Opening FAQ HTML report in browser...`);
     console.log(`📂 File path: ${htmlPath}`);
     
     exec(`${openCommand} "${htmlPath}"`, (error) => {
@@ -58,12 +58,12 @@ async function generateHTMLFromCSV() {
         console.error(`Failed to open browser: ${error.message}`);
         console.log(`📂 Please manually open: ${htmlPath}`);
       } else {
-        console.log('✅ HTML report opened in browser!');
+        console.log('✅ FAQ HTML report opened in browser!');
       }
     });
     
   } catch (error) {
-    console.error('❌ Error during HTML report generation:', error.message);
+    console.error('❌ Error during FAQ HTML report generation:', error.message);
     console.error(error.stack);
     process.exit(1);
   }
@@ -71,7 +71,7 @@ async function generateHTMLFromCSV() {
 
 // 스크립트 실행
 if (require.main === module) {
-  generateHTMLFromCSV();
+  generateHTMLFromFAQCSV();
 }
 
-module.exports = { generateHTMLFromCSV };
+module.exports = { generateHTMLFromFAQCSV };
