@@ -1,6 +1,6 @@
-const TestReportGenerator = require('./pactumjs_test_new/src/reports/generators/TestReportGenerator');
-const ChatMessageRenderer = require('./pactumjs_test_new/src/reports/generators/ChatMessageRenderer');
-const ComparisonEngine = require('./pactumjs_test_new/src/reports/generators/ComparisonEngine');
+const TestReportGenerator = require('../src/reports/generators/TestReportGenerator');
+const ChatMessageRenderer = require('../src/reports/generators/ChatMessageRenderer');
+const ComparisonEngine = require('../src/reports/generators/ComparisonEngine');
 
 // 테스트 데이터 예제
 const mockTestData = {
@@ -119,7 +119,7 @@ async function testReportGeneration() {
     // 1. TestReportGenerator 테스트
     console.log('📋 Testing TestReportGenerator...');
     const generator = new TestReportGenerator({
-      outputDir: './pactumjs_test_new/reports/html',
+      outputDir: '../reports/html',
       brandColor: '#12DE00'
     });
     
@@ -176,9 +176,9 @@ async function testReportGeneration() {
     const path = require('path');
     
     const cssFiles = [
-      './pactumjs_test_new/src/reports/styles/main.css',
-      './pactumjs_test_new/src/reports/styles/chat-message.css',
-      './pactumjs_test_new/src/reports/styles/responsive.css'
+      '../src/reports/styles/main.css',
+      '../src/reports/styles/chat-message.css',
+      '../src/reports/styles/responsive.css'
     ];
     
     let totalCSSSize = 0;

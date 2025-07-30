@@ -283,6 +283,43 @@ class GoogleSheetsService {
   }
 
   /**
+   * LLM 응답에서 버블별 텍스트 추출
+   * @param {string|object} responseBody - 응답 바디 (JSON 문자열 또는 객체)
+   * @returns {object} 버블별 텍스트 객체
+   */
+  extractBubbleTexts(responseBody) {
+    try {
+      let bubbles = responseBody;
+      
+      // 문자열인 경우 JSON 파싱
+      if (typeof responseBody === 'string') {
+        bubbles = JSON.parse(responseBody);
+      }
+      
+      // 배열이 아닌 경우 빈 객체 반환
+      if (!Array.isArray(bubbles)) {
+        return { main: '', sub: '', cta: '' };
+      }
+      
+      const result = { main: '', sub: '', cta: '' };
+      
+      bubbles.forEach(bubble => {
+        if (bubble.type && bubble.text) {
+          const cleanText = bubble.text.replace(/\n/g, '').trim();
+          if (bubble.type === 'main') result.main = cleanText;
+          else if (bubble.type === 'sub') result.sub = cleanText;
+          else if (bubble.type === 'cta') result.cta = cleanText;
+        }
+      });
+      
+      return result;
+    } catch (error) {
+      logger.warn(`Failed to parse bubble texts: ${error.message}`);
+      return { main: '', sub: '', cta: '' };
+    }
+  }
+
+  /**
    * Upload test results to a new Google Sheets tab with unique naming
    * @param {Array} results - Test results array
    * @param {string} testType - Type of test for sheet naming
@@ -324,12 +361,14 @@ class GoogleSheetsService {
       // Convert results to sheet format
       const headers = [
         '테스트번호', '유저역할', '유저아이디', '테스트카테고리', '메세지',
-        '응답결과_스테이터스코드', '응답결과_바디', '응답시간(ms)', 
-        '성공여부', '검증오류', '실행일시'
+        '응답결과_스테이터스코드', 'main버블', 'sub버블', 'cta버블', 
+        '응답시간(ms)', '성공여부', '검증오류', '실행일시', '응답결과_바디'
       ];
 
       const rows = [headers];
       results.forEach(result => {
+        const bubbleTexts = this.extractBubbleTexts(result.body);
+        
         rows.push([
           result.testId || '',
           result.userRole || 'User_S',
@@ -337,11 +376,14 @@ class GoogleSheetsService {
           result.category || '',
           result.message || '',
           result.statusCode || '',
-          typeof result.body === 'object' ? JSON.stringify(result.body) : result.body || '',
+          bubbleTexts.main,      // main버블
+          bubbleTexts.sub,       // sub버블  
+          bubbleTexts.cta,       // cta버블
           result.responseTime || '',
           result.success ? '성공' : '실패',
           result.validationErrors ? result.validationErrors.join('; ') : '',
-          new Date().toISOString()
+          new Date().toISOString(),
+          typeof result.body === 'object' ? JSON.stringify(result.body) : result.body || ''
         ]);
       });
 

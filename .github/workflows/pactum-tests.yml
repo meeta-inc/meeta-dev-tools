@@ -1,188 +1,118 @@
-name: PactumJS Test Suite
+name: LLM Automation Test
 
 on:
+  # main/develop 브랜치 머지 시
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'pactumjs_test_new/**'
+      - '.github/workflows/pactum-tests.yml'
+  
+  # PR 생성 시
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'pactumjs_test_new/**'
+      - '.github/workflows/pactum-tests.yml'
+  
+  # 스케줄 실행
+  schedule:
+    # 매일 새벽 2시 (UTC 17:00 = KST 02:00) - FAQ 전체
+    - cron: '0 17 * * *'
+    # 매일 오전 7시 (UTC 22:00 = KST 07:00) - ALL 테스트
+    - cron: '0 22 * * *'
+  
   # 수동 실행
   workflow_dispatch:
     inputs:
-      test-type:
-        description: 'Test type to run'
+      test_type:
+        description: '테스트 타입 선택'
         required: true
         type: choice
         options:
-          - single
-          - grade
-          - category
-          - full
+          - 'single'          # 단일 테스트 (일반)
+          - 'single-plus'     # 단일 + 추가 N개 (일반)
+          - 'faq-single'      # FAQ 단일 테스트
+          - 'faq-single-plus' # FAQ 단일 + 추가 N개
+          - 'faq-all'         # FAQ 전체 테스트 (47개)
+          - 'test-all'        # 전체 테스트 (일반 + FAQ)
         default: 'single'
-      grade:
-        description: 'Grade (for grade tests)'
+      
+      test_id:
+        description: '테스트 ID (예: ELEMENTARY_A-1, INFANT-001) - single/single-plus/faq-single/faq-single-plus에서만 사용'
         required: false
+        type: string
+        default: ''
+      
+      additional_count:
+        description: '추가 테스트 개수 (single-plus/faq-single-plus에서만 사용)'
+        required: false
+        type: string
+        default: '3'
+      
+      concurrency:
+        description: '병렬 실행 수 (동시에 실행할 테스트 개수)'
+        required: true
         type: choice
         options:
-          - elementary
-          - middle
-          - high
-          - all
-      category:
-        description: 'Category (for category tests)'
-        required: false
-        type: string
-      test-id:
-        description: 'Test ID (for single tests)'
-        required: false
-        type: string
-      slack-notification:
-        description: 'Send Slack notification'
-        required: false
-        type: boolean
-        default: true
-      gsheet-upload:
-        description: 'Upload to Google Sheets'
-        required: false
-        type: boolean
-        default: true
-
-  # 스케줄 실행 - 매일 새벽 2시
-  schedule:
-    - cron: '0 17 * * *'  # UTC 17:00 = KST 02:00
-
-  # Push 이벤트 (pactumjs_test_new 디렉토리 변경 시)
-  push:
-    branches: [main, develop]
-    paths:
-      - 'pactumjs_test_new/**'
-      - '.github/workflows/pactum-tests.yml'
-
-  # PR 이벤트
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'pactumjs_test_new/**'
-      - '.github/workflows/pactum-tests.yml'
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+          - '5'
+        default: '1'
+      
+      interval:
+        description: '테스트 간격 (각 테스트 사이 대기 시간)'
+        required: true
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '5'
+          - '10'
+          - '15'
+          - '20'
+          - '30'
+        default: '1'
 
 jobs:
-  # PR에서는 간단한 테스트만 실행
-  quick-test:
-    name: Quick Test (PR)
+  test:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: pactumjs_test_new
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    env:
+      # API 환경 변수
+      AI_NAVI_CHAT_API_URL: ${{ secrets.AI_NAVI_CHAT_API_URL || 'https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1' }}
+      AI_NAVI_CHAT_API_KEY: ${{ secrets.AI_NAVI_CHAT_API_KEY }}
+      AI_NAVI_CHAT_API_TIMEOUT: ${{ secrets.AI_NAVI_CHAT_API_TIMEOUT || '30000' }}
       
-      - name: Create test environment file
-        run: |
-          mkdir -p pactumjs_test_new
-          cd pactumjs_test_new
-          cat > .env << EOF
-          # Test Configuration
-          API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
-          API_TIMEOUT=30000
-          API_RETRIES=3
-          TEST_CONCURRENCY=2
-          REPORT_FORMAT=json
-          OUTPUT_DIR=./reports
-          
-          # Mock credentials for PR testing
-          AWS_ACCESS_KEY_ID=test_key
-          AWS_SECRET_ACCESS_KEY=test_secret
-          AWS_REGION=ap-northeast-1
-          S3_BUCKET_NAME=test-bucket
-          
-          GOOGLE_CLIENT_EMAIL=test@test.com
-          GOOGLE_PRIVATE_KEY="test_key"
-          GOOGLE_SPREADSHEET_ID=test_sheet_id
-          
-          SLACK_WEBHOOK_URL=https://hooks.slack.com/test
-          
-          # Default Test Parameters
-          DEFAULT_CLIENT_ID=RS000001
-          DEFAULT_APP_ID=0001
-          DEFAULT_USER_ID=ci_test_user
-          EOF
+      # AWS 환경 변수
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ap-northeast-1
+      S3_BUCKET_NAME: meeta-ai-navi-test
       
-      - name: Run single test
-        uses: ./pactumjs_test_new/.github/actions/test-automation
-        with:
-          test-type: single
-          test-id: ELEMENTARY_A-1
-          slack-notification: false
-          gsheet-upload: false
-          environment: test
-
-  # 수동 실행 테스트
-  manual-test:
-    name: Manual Test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # Google Sheets 환경 변수
+      GOOGLE_CLIENT_EMAIL: mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
+      GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+      GOOGLE_SPREADSHEET_ID: 1RPTo9ReD7XFCbedoI1f3pR6iKGfqYNmyWPWNvPgwn0U
+      GOOGLE_SHEET_RANGE: LLM표준!A5:L1000
+      GOOGLE_SERVICE_ACCOUNT_PATH: ./config/service-account.json
+      GOOGLE_DRIVE_FOLDER_ID: 10Pv2qULZ9TOni3nOnWSfQhBbQhmIZq1l
       
-      - name: Create production environment file
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          cd pactumjs_test_new
-          cat > .env << EOF
-          # API Configuration
-          API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
-          API_TIMEOUT=30000
-          API_RETRIES=3
-          
-          # Test Configuration
-          TEST_CONCURRENCY=3
-          REPORT_FORMAT=json
-          OUTPUT_DIR=./reports
-          
-          # AWS Credentials
-          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-          AWS_REGION=ap-northeast-1
-          S3_BUCKET_NAME=meeta-ai-navi-test
-          S3_TEST_CASES_KEY=test-cases.csv
-          S3_RESULTS_KEY=test-results.csv
-          
-          # Google API Credentials
-          GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
-          GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
-          GOOGLE_SPREADSHEET_ID=1RPTo9ReD7XFCbedoI1f3pR6iKGfqYNmyWPWNvPgwn0U
-          GOOGLE_SHEET_RANGE=LLM표준!A5:L1000
-          GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
-          GOOGLE_DRIVE_FOLDER_ID=10Pv2qULZ9TOni3nOnWSfQhBbQhmIZq1l
-          
-          # Slack Webhook URL
-          SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
-          SLACK_CHANNEL=#ci-test-results
-          SLACK_USERNAME=CI Bot
-          
-          # Default Test Parameters
-          DEFAULT_CLIENT_ID=RS000001
-          DEFAULT_APP_ID=0001
-          DEFAULT_USER_ID=manual_test_user
-          EOF
+      # Slack 환경 변수
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      SLACK_CHANNEL: '#ci-test-results'
+      SLACK_USERNAME: 'LLM Automation Bot'
       
-      - name: Run manual test
-        uses: ./pactumjs_test_new/.github/actions/test-automation
-        with:
-          test-type: ${{ inputs.test-type }}
-          grade: ${{ inputs.grade }}
-          category: ${{ inputs.category }}
-          test-id: ${{ inputs.test-id }}
-          slack-notification: ${{ inputs.slack-notification }}
-          gsheet-upload: ${{ inputs.gsheet-upload }}
-          environment: production
-
-  # 메인 브랜치 push - 전체 테스트 (grade 구분 없음)
-  main-branch-test:
-    name: Main Branch Full Test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      # 기본 테스트 파라미터
+      DEFAULT_CLIENT_ID: RS000001
+      DEFAULT_APP_ID: '0001'
+      DEFAULT_USER_ID: github_action_user
     
     steps:
       - name: Checkout code
@@ -194,231 +124,211 @@ jobs:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: 'pactumjs_test_new/package-lock.json'
-          
-      - name: Install dependencies
-        run: |
-          cd pactumjs_test_new
-          npm ci
       
-      - name: Build project
+      - name: Create environment file
         run: |
-          cd pactumjs_test_new
-          npm run build
-          cp -r config dist/config
-          cp -r src/utils dist/src/utils
-      
-      - name: Create production environment file
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          cd pactumjs_test_new
           cat > .env << EOF
           # API Configuration
-          API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
-          API_TIMEOUT=30000
+          API_BASE_URL=${{ env.AI_NAVI_CHAT_API_URL }}
+          API_TIMEOUT=${{ env.AI_NAVI_CHAT_API_TIMEOUT }}
           API_RETRIES=3
           
           # Test Configuration
-          TEST_CONCURRENCY=1
+          TEST_CONCURRENCY=${{ github.event.inputs.concurrency || '1' }}
           REPORT_FORMAT=json
           OUTPUT_DIR=./reports
           
           # AWS Credentials
-          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-          AWS_REGION=ap-northeast-1
-          S3_BUCKET_NAME=meeta-ai-navi-test
+          AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION=${{ env.AWS_REGION }}
+          S3_BUCKET_NAME=${{ env.S3_BUCKET_NAME }}
           S3_TEST_CASES_KEY=test-cases.csv
-          S3_RESULTS_KEY=test-results-main.csv
+          S3_RESULTS_KEY=test-results-$(date +%Y%m%d-%H%M%S).csv
           
           # Google API Credentials
-          GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
-          GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
-          GOOGLE_SPREADSHEET_ID=1RPTo9ReD7XFCbedoI1f3pR6iKGfqYNmyWPWNvPgwn0U
-          GOOGLE_SHEET_RANGE=LLM표준!A5:L1000
-          GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
-          GOOGLE_DRIVE_FOLDER_ID=10Pv2qULZ9TOni3nOnWSfQhBbQhmIZq1l
+          GOOGLE_CLIENT_EMAIL=${{ env.GOOGLE_CLIENT_EMAIL }}
+          GOOGLE_PRIVATE_KEY="${{ env.GOOGLE_PRIVATE_KEY }}"
+          GOOGLE_SPREADSHEET_ID=${{ env.GOOGLE_SPREADSHEET_ID }}
+          GOOGLE_SHEET_RANGE=${{ env.GOOGLE_SHEET_RANGE }}
+          GOOGLE_SERVICE_ACCOUNT_PATH=${{ env.GOOGLE_SERVICE_ACCOUNT_PATH }}
+          GOOGLE_DRIVE_FOLDER_ID=${{ env.GOOGLE_DRIVE_FOLDER_ID }}
           
           # Slack Webhook URL
-          SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
-          SLACK_CHANNEL=#ci-test-results
-          SLACK_USERNAME=Main Branch Bot
+          SLACK_WEBHOOK_URL=${{ env.SLACK_WEBHOOK_URL }}
+          SLACK_CHANNEL=${{ env.SLACK_CHANNEL }}
+          SLACK_USERNAME=${{ env.SLACK_USERNAME }}
           
           # Default Test Parameters
-          DEFAULT_CLIENT_ID=RS000001
-          DEFAULT_APP_ID=0001
-          DEFAULT_USER_ID=main_branch_user
+          DEFAULT_CLIENT_ID=${{ env.DEFAULT_CLIENT_ID }}
+          DEFAULT_APP_ID=${{ env.DEFAULT_APP_ID }}
+          DEFAULT_USER_ID=${{ env.DEFAULT_USER_ID }}
           EOF
       
-      - name: Run all tests
-        run: |
-          cd pactumjs_test_new
-          node scripts/run-tests.js --concurrency=1
-          
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: main-branch-test-results
-          path: pactumjs_test_new/reports/
-          retention-days: 30
-
-  # 스케줄 실행 - Grade별 테스트
-  scheduled-test:
-    name: Scheduled Grade Test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule'
-    
-    strategy:
-      matrix:
-        grade: [elementary, middle, high]
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'pactumjs_test_new/package-lock.json'
-          
       - name: Install dependencies
-        run: |
-          cd pactumjs_test_new
-          npm ci
+        run: make install
       
       - name: Build project
-        run: |
-          cd pactumjs_test_new
-          npm run build
-          cp -r config dist/config
-          cp -r src/utils dist/src/utils
+        run: make build
       
-      - name: Create production environment file
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # PR에서 랜덤 싱글 테스트
+      - name: Run random single test (PR)
+        if: github.event_name == 'pull_request'
         run: |
-          cd pactumjs_test_new
-          cat > .env << EOF
-          # API Configuration
-          API_BASE_URL=https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1
-          API_TIMEOUT=30000
-          API_RETRIES=3
-          
-          # Test Configuration
-          TEST_CONCURRENCY=1
-          REPORT_FORMAT=json
-          OUTPUT_DIR=./reports
-          
-          # AWS Credentials
-          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-          AWS_REGION=ap-northeast-1
-          S3_BUCKET_NAME=meeta-ai-navi-test
-          S3_TEST_CASES_KEY=test-cases.csv
-          S3_RESULTS_KEY=test-results-${{ matrix.grade }}.csv
-          
-          # Google API Credentials
-          GOOGLE_CLIENT_EMAIL=mygooglesheets@junha-20250602-test.iam.gserviceaccount.com
-          GOOGLE_PRIVATE_KEY="${GOOGLE_PRIVATE_KEY}"
-          GOOGLE_SPREADSHEET_ID=1RPTo9ReD7XFCbedoI1f3pR6iKGfqYNmyWPWNvPgwn0U
-          GOOGLE_SHEET_RANGE=LLM표준!A5:L1000
-          GOOGLE_SERVICE_ACCOUNT_PATH=./config/service-account.json
-          GOOGLE_DRIVE_FOLDER_ID=10Pv2qULZ9TOni3nOnWSfQhBbQhmIZq1l
-          
-          # Slack Webhook URL
-          SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
-          SLACK_CHANNEL=#ci-test-results
-          SLACK_USERNAME=Scheduled Test Bot
-          
-          # Default Test Parameters
-          DEFAULT_CLIENT_ID=RS000001
-          DEFAULT_APP_ID=0001
-          DEFAULT_USER_ID=scheduled_test_${{ matrix.grade }}
-          EOF
+          echo "🔍 Running random single test for PR..."
+          # 랜덤 테스트 ID 선택
+          TEST_IDS=("ELEMENTARY_A-1" "MIDDLE_A-1" "HIGH_A-1" "ELEMENTARY_B-1" "MIDDLE_B-1" "HIGH_B-1")
+          RANDOM_ID=${TEST_IDS[$RANDOM % ${#TEST_IDS[@]}]}
+          echo "Selected test ID: $RANDOM_ID"
+          make test-single TEST_ID=$RANDOM_ID NO_SLACK=true
       
-      - name: Run scheduled test for ${{ matrix.grade }}
+      # main/develop 머지 시 전체 테스트
+      - name: Run all tests (Push to main/develop)
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
         run: |
-          cd pactumjs_test_new
-          node scripts/run-tests.js --grade=${{ matrix.grade }} --concurrency=1
-          
-      - name: Upload test results
+          echo "🚀 Running all tests for ${GITHUB_REF#refs/heads/} branch..."
+          make test-all CONCURRENCY=1 INTERVAL=2
+      
+      # 스케줄 실행 - 새벽 2시 FAQ 전체
+      - name: Run FAQ tests (Scheduled at 2 AM)
+        if: github.event_name == 'schedule' && contains(github.event.schedule, '0 17 * * *')
+        run: |
+          echo "🌙 Running scheduled FAQ tests at 2 AM KST..."
+          make faq-all CONCURRENCY=1 INTERVAL=5
+      
+      # 스케줄 실행 - 오전 7시 전체 테스트
+      - name: Run all tests (Scheduled at 7 AM)
+        if: github.event_name == 'schedule' && contains(github.event.schedule, '0 22 * * *')
+        run: |
+          echo "☀️ Running scheduled all tests at 7 AM KST..."
+          make test-all CONCURRENCY=1 INTERVAL=1
+      
+      # 수동 실행 - single
+      - name: Run single test (Manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'single'
+        run: |
+          echo "🎯 Running single test: ${{ github.event.inputs.test_id }}"
+          if [ -z "${{ github.event.inputs.test_id }}" ]; then
+            echo "❌ Error: Test ID is required for single test"
+            exit 1
+          fi
+          make test-single TEST_ID=${{ github.event.inputs.test_id }} \
+            CONCURRENCY=${{ github.event.inputs.concurrency }} \
+            INTERVAL=${{ github.event.inputs.interval }}
+      
+      # 수동 실행 - single-plus
+      - name: Run single plus test (Manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'single-plus'
+        run: |
+          echo "🎯 Running single plus test: ${{ github.event.inputs.test_id }} + ${{ github.event.inputs.additional_count }}"
+          if [ -z "${{ github.event.inputs.test_id }}" ]; then
+            echo "❌ Error: Test ID is required for single plus test"
+            exit 1
+          fi
+          # single-plus는 Makefile에 없으므로 직접 스크립트 실행
+          node scripts/run-tests.js \
+            --id=${{ github.event.inputs.test_id }} \
+            --additional-cases=${{ github.event.inputs.additional_count }} \
+            --concurrency=${{ github.event.inputs.concurrency }} \
+            --interval=${{ github.event.inputs.interval }}
+      
+      # 수동 실행 - faq-single
+      - name: Run FAQ single test (Manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'faq-single'
+        run: |
+          echo "🎯 Running FAQ single test: ${{ github.event.inputs.test_id }}"
+          if [ -z "${{ github.event.inputs.test_id }}" ]; then
+            echo "❌ Error: Test ID is required for FAQ single test"
+            exit 1
+          fi
+          make faq-single ID=${{ github.event.inputs.test_id }} \
+            CONCURRENCY=${{ github.event.inputs.concurrency }} \
+            INTERVAL=${{ github.event.inputs.interval }}
+      
+      # 수동 실행 - faq-single-plus
+      - name: Run FAQ single plus test (Manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'faq-single-plus'
+        run: |
+          echo "🎯 Running FAQ single plus test: ${{ github.event.inputs.test_id }} + ${{ github.event.inputs.additional_count }}"
+          if [ -z "${{ github.event.inputs.test_id }}" ]; then
+            echo "❌ Error: Test ID is required for FAQ single plus test"
+            exit 1
+          fi
+          make faq-single-plus ID=${{ github.event.inputs.test_id }} \
+            N=${{ github.event.inputs.additional_count }} \
+            CONCURRENCY=${{ github.event.inputs.concurrency }} \
+            INTERVAL=${{ github.event.inputs.interval }}
+      
+      # 수동 실행 - faq-all
+      - name: Run all FAQ tests (Manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'faq-all'
+        run: |
+          echo "📋 Running all FAQ tests (47 cases)..."
+          make faq-all \
+            CONCURRENCY=${{ github.event.inputs.concurrency }} \
+            INTERVAL=${{ github.event.inputs.interval }}
+      
+      # 수동 실행 - test-all
+      - name: Run all tests (Manual)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.test_type == 'test-all'
+        run: |
+          echo "🚀 Running all tests (general + FAQ)..."
+          make test-all \
+            CONCURRENCY=${{ github.event.inputs.concurrency }} \
+            INTERVAL=${{ github.event.inputs.interval }}
+      
+      # 테스트 결과 업로드
+      - name: Upload test reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: scheduled-test-results-${{ matrix.grade }}
-          path: pactumjs_test_new/reports/
+          name: test-reports-${{ github.run_number }}
+          path: |
+            pactumjs_test_new/reports/*.json
+            pactumjs_test_new/reports/*.html
+            pactumjs_test_new/reports/html/*.html
           retention-days: 30
-
-  # 결과 집계 및 최종 알림
-  notify-results:
-    name: Notify Final Results
-    needs: [main-branch-test, scheduled-test]
-    runs-on: ubuntu-latest
-    if: always() && (github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main'))
-    
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: all-results
       
-      - name: Send final notification
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # 실패 시 Slack 알림
+      - name: Notify failure to Slack
+        if: failure() && github.event_name != 'pull_request'
         run: |
-          MAIN_RESULT="${{ needs.main-branch-test.result || 'skipped' }}"
-          SCHEDULED_RESULT="${{ needs.scheduled-test.result || 'skipped' }}"
-          
-          if [[ "$MAIN_RESULT" == "success" && "$SCHEDULED_RESULT" == "success" ]] || [[ "$MAIN_RESULT" == "success" && "$SCHEDULED_RESULT" == "skipped" ]] || [[ "$MAIN_RESULT" == "skipped" && "$SCHEDULED_RESULT" == "success" ]]; then
-            STATUS="✅ All tests completed successfully"
-            COLOR="good"
+          TRIGGER_TYPE="${{ github.event_name }}"
+          if [ "$TRIGGER_TYPE" == "workflow_dispatch" ]; then
+            TEST_INFO="${{ github.event.inputs.test_type }}"
+          elif [ "$TRIGGER_TYPE" == "schedule" ]; then
+            TEST_INFO="Scheduled"
           else
-            STATUS="⚠️ Some tests failed or were skipped"
-            COLOR="warning"
+            TEST_INFO="${GITHUB_REF#refs/heads/}"
           fi
           
           curl -X POST -H 'Content-type: application/json' \
-          --data "{
-            \"text\": \"PactumJS Test Suite - Final Results\",
-            \"attachments\": [{
-              \"color\": \"${COLOR}\",
-              \"fields\": [
-                {
-                  \"title\": \"Status\",
-                  \"value\": \"${STATUS}\",
-                  \"short\": false
-                },
-                {
-                  \"title\": \"Workflow\",
-                  \"value\": \"${{ github.workflow }}\",
-                  \"short\": true
-                },
-                {
-                  \"title\": \"Trigger\",
-                  \"value\": \"${{ github.event_name }}\",
-                  \"short\": true
-                },
-                {
-                  \"title\": \"Branch\",
-                  \"value\": \"${{ github.ref_name }}\",
-                  \"short\": true
-                },
-                {
-                  \"title\": \"Run ID\",
-                  \"value\": \"${{ github.run_id }}\",
-                  \"short\": true
-                }
-              ],
-              \"footer\": \"PactumJS Test Automation\",
-              \"ts\": $(date +%s)
-            }]
-          }" $SLACK_WEBHOOK_URL || echo "Slack notification failed"
+            --data "{
+              \"text\": \"❌ LLM Automation Test Failed!\",
+              \"attachments\": [{
+                \"color\": \"danger\",
+                \"fields\": [
+                  {
+                    \"title\": \"Test Type\",
+                    \"value\": \"${TEST_INFO}\",
+                    \"short\": true
+                  },
+                  {
+                    \"title\": \"Trigger\",
+                    \"value\": \"${{ github.event_name }}\",
+                    \"short\": true
+                  },
+                  {
+                    \"title\": \"Actor\",
+                    \"value\": \"${{ github.actor }}\",
+                    \"short\": true
+                  },
+                  {
+                    \"title\": \"Run URL\",
+                    \"value\": \"<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>\",
+                    \"short\": false
+                  }
+                ]
+              }]
+            }" \
+            ${{ env.SLACK_WEBHOOK_URL }}
