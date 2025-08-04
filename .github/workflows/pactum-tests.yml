@@ -25,6 +25,15 @@ on:
   # 수동 실행
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'API 환경 선택'
+        required: true
+        type: choice
+        options:
+          - 'dev2'  # 개발 환경 2 (기본값)
+          - 'dev'   # 개발 환경 1
+        default: 'dev2'
+      
       test_type:
         description: '테스트 타입 선택'
         required: true
@@ -86,7 +95,7 @@ jobs:
     
     env:
       # API 환경 변수
-      AI_NAVI_CHAT_API_URL: ${{ secrets.AI_NAVI_CHAT_API_URL || 'https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1' }}
+      AI_NAVI_CHAT_API_URL: ${{ github.event.inputs.environment == 'dev' && 'https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/prd-1' || 'https://67hnjuna66.execute-api.ap-northeast-1.amazonaws.com/dev2' }}
       AI_NAVI_CHAT_API_KEY: ${{ secrets.AI_NAVI_CHAT_API_KEY }}
       AI_NAVI_CHAT_API_TIMEOUT: ${{ secrets.AI_NAVI_CHAT_API_TIMEOUT || '30000' }}
       
