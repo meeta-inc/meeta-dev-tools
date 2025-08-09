@@ -25,7 +25,15 @@ const PORT = parseInt(process.env.PORT || '3001');
 const HOST = process.env.HOST || '0.0.0.0';
 
 server.register(cors, {
-  origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000']
+  origin: (origin, callback) => {
+    const allowedOrigins = process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'];
+    // file:// protocol이나 null origin(직접 HTML 파일 열기) 허용
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('null')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'), false);
+    }
+  }
 });
 
 server.register(swagger, {
@@ -225,6 +233,139 @@ server.post('/students/chat', {
     
   } catch (error) {
     server.log.error('Chat endpoint error:', error);
+    return reply.status(500).send({
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred',
+      timestamp: new Date().toISOString()
+    } as ErrorResponse);
+  }
+});
+
+// 스트리밍 챗 엔드포인트 추가
+server.post('/students/chat/stream', {
+  schema: {
+    description: 'AI 챗봇과의 스트리밍 대화 API',
+    tags: ['Chat'],
+    headers: {
+      type: 'object',
+      properties: {
+        'x-jwe-token': { type: 'string', description: 'JWE token for authentication' }
+      },
+      required: ['x-jwe-token']
+    },
+    body: {
+      type: 'object',
+      properties: {
+        clientId: { type: 'string', pattern: '^[A-Z]{2}\\d{6}$', description: '클라이언트 ID (2글자 대문자 + 6자리 숫자)' },
+        appId: { type: 'string', pattern: '^\\d{4}$', description: '앱 ID (4자리 숫자)' },
+        gradeId: { type: 'string', enum: ['preschool', 'elementary', 'middle', 'high'], description: '학년 구분' },
+        userId: { type: 'string', minLength: 1, maxLength: 50, description: '사용자 ID' },
+        message: { type: 'string', minLength: 1, maxLength: 1000, description: '사용자 메시지' },
+        sessionId: { type: 'string', description: '세션 ID (선택사항)' }
+      },
+      required: ['clientId', 'appId', 'gradeId', 'userId', 'message']
+    }
+  }
+}, async (request, reply) => {
+  try {
+    const jweToken = request.headers['x-jwe-token'];
+    if (!jweToken || typeof jweToken !== 'string') {
+      return reply.status(401).send({
+        error: 'Unauthorized',
+        message: 'Missing or invalid X-JWE-Token header',
+        timestamp: new Date().toISOString()
+      } as ErrorResponse);
+    }
+    
+    server.log.info('JWE Token received for streaming:', {
+      tokenLength: jweToken.length,
+      tokenPrefix: jweToken.substring(0, 20) + '...'
+    });
+
+    const validation = ChatRequestSchema.safeParse(request.body);
+    if (!validation.success) {
+      server.log.error('Validation error:', validation.error);
+      return reply.status(400).send({
+        error: 'Bad Request',
+        message: 'Invalid request body: ' + validation.error.message,
+        timestamp: new Date().toISOString(),
+        details: validation.error.issues
+      } as ErrorResponse);
+    }
+
+    // 스트리밍 응답 설정
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type, X-JWE-Token'
+    });
+
+    const sendSSEMessage = (data: any) => {
+      const message = `data: ${JSON.stringify(data)}\n\n`;
+      server.log.info('Sending SSE message:', message.trim());
+      reply.raw.write(message);
+    };
+
+    // 즉시 연결 확인 메시지 전송
+    sendSSEMessage({ type: 'connected' });
+
+    // 메인 버블 먼저 전송 (500ms 후)
+    setTimeout(() => {
+      const mainBubble: ResponseBubble = {
+        type: 'main',
+        text: `はい、ありがとうございます！3.14コミュニティでは、北海道大学をはじめとした難関大学志望の方向けに「難関国立大受験コース」「有名私立大受験コース」を用意しております。`,
+        attachment: null
+      };
+      sendSSEMessage({ type: 'bubble', data: mainBubble });
+      server.log.info('Sent main bubble');
+    }, 500);
+
+    // 서브 버블 전송 (gradeId가 elementary인 경우만, 1500ms 후)
+    if (validation.data.gradeId === 'elementary') {
+      setTimeout(() => {
+        const subBubble: ResponseBubble = {
+          type: 'sub',
+          text: 'また、さらに上のレベルを目指す方には、よりパーソナルなコーチングをご提供する「Brains Gym」もおすすめです☺️',
+          attachment: {
+            type: 'link' as const,
+            url: 'https://www.brainsgym.com/',
+            title: 'Brains Gymのサイトはこちら',
+            description: 'パーソナルコーチングで更なるレベルアップを目指しませんか？'
+          }
+        };
+        sendSSEMessage({ type: 'bubble', data: subBubble });
+        server.log.info('Sent sub bubble');
+      }, 1500);
+    }
+
+    // CTA 버블 전송 (서브 버블 유무에 따라 타이밍 조절)
+    const ctaDelay = validation.data.gradeId === 'elementary' ? 2500 : 1500;
+    setTimeout(() => {
+      const ctaBubble: ResponseBubble = {
+        type: 'cta',
+        text: '詳しい内容は体験や資料請求でご案内しておりますので、ぜひお気軽にご相談ください！',
+        attachment: null
+      };
+      sendSSEMessage({ type: 'bubble', data: ctaBubble });
+      server.log.info('Sent CTA bubble');
+      
+      // 스트림 종료 신호
+      setTimeout(() => {
+        sendSSEMessage({ type: 'done' });
+        reply.raw.end();
+        server.log.info('Stream ended');
+      }, 100);
+    }, ctaDelay);
+
+    // 연결 종료 시 정리
+    request.raw.on('close', () => {
+      server.log.info('Client disconnected from stream');
+    });
+    
+  } catch (error) {
+    server.log.error('Streaming chat endpoint error:', error);
     return reply.status(500).send({
       error: 'Internal Server Error',
       message: 'An unexpected error occurred',
