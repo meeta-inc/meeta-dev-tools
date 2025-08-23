@@ -32,10 +32,15 @@ export class AINaviChatClient {
    * AI Navi API에 채팅 메시지 전송 (재시도 포함)
    */
   async sendMessage(params: ChatRequest): Promise<APIResponse<ChatResponse | ErrorResponse>> {
-    const { clientId, appId, gradeId, userId, message, sessionId } = params;
+    const { clientId, appId, gradeId, userId, message, sessionId, model = 'anthropic' } = params;
     
     // 파라미터 검증
     this.validateParams({ clientId, appId, gradeId, userId, message });
+    
+    // 모델 파라미터 검증
+    if (model && !['anthropic', 'openai'].includes(model)) {
+      throw new Error(`Invalid model parameter: ${model}. Must be 'anthropic' or 'openai'`);
+    }
 
     let lastError: Error | null = null;
     
@@ -54,6 +59,7 @@ export class AINaviChatClient {
             gradeId,
             userId,
             message,
+            model,
             ...(sessionId && { sessionId })
           })
           .withRequestTimeout(this.timeout)
@@ -138,14 +144,22 @@ export class AINaviChatClient {
       return validation;
     }
 
-    // 에러 응답인 경우
-    if (!Array.isArray(response.body)) {
+    // Check if response has the expected structure with response field
+    let bubbles: ChatResponse;
+    const body = response.body as any;
+    
+    if (body.response && Array.isArray(body.response)) {
+      // New structure: {"response": [...], "tool": ...}
+      bubbles = body.response as ChatResponse;
+    } else if (Array.isArray(body)) {
+      // Old structure: direct array
+      bubbles = body as ChatResponse;
+    } else {
       validation.isValid = false;
-      validation.errors.push('Response body should be an array of bubbles');
+      validation.errors.push('Response body should contain an array of bubbles in response field or be an array itself');
       return validation;
     }
 
-    const bubbles = response.body as ChatResponse;
     validation.bubbleCount = bubbles.length;
 
     // 각 버블 검증

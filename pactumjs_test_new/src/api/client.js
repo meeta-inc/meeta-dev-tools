@@ -18,29 +18,41 @@ class AINaviChatClient {
    * @param {string} params.userId - User identifier
    * @param {string} params.message - User's question (max 1000 chars)
    * @param {string} [params.sessionId] - Optional session identifier
+   * @param {string} [params.model='anthropic'] - AI model to use ('anthropic' or 'openai')
    * @returns {Promise<Object>} API response with timing info
    */
   async sendMessage(params) {
-    const { clientId, appId, gradeId, userId, message, sessionId } = params;
+    const { clientId, appId, gradeId, userId, message, sessionId, model = 'anthropic' } = params;
     
     // Validate required parameters
     this._validateParams({ clientId, appId, gradeId, userId, message });
+    
+    // Validate model parameter
+    if (model && !['anthropic', 'openai'].includes(model)) {
+      throw new Error(`Invalid model parameter: ${model}. Must be 'anthropic' or 'openai'`);
+    }
 
     const startTime = Date.now();
     const endpoint = `${this.baseUrl}${config.api.endpoints.chat}`;
     
     try {
+      const requestBody = {
+        clientId,
+        appId,
+        gradeId,
+        userId,
+        message,
+        model,
+        ...(sessionId && { sessionId })
+      };
+      
+      // Log request body for debugging
+      logger.info('Sending request with body:', requestBody);
+      
       const spec = pactum.spec();
       const response = await spec
         .post(endpoint)
-        .withJson({
-          clientId,
-          appId,
-          gradeId,
-          userId,
-          message,
-          ...(sessionId && { sessionId })
-        })
+        .withJson(requestBody)
         .withRequestTimeout(this.timeout)
         .toss();
 
@@ -101,17 +113,24 @@ class AINaviChatClient {
       return validation;
     }
 
-    // Check if response has bubbles array
-    if (!Array.isArray(response.body)) {
+    // Check if response has the expected structure with response field
+    let bubbles;
+    if (response.body.response && Array.isArray(response.body.response)) {
+      // New structure: {"response": [...], "tool": ...}
+      bubbles = response.body.response;
+    } else if (Array.isArray(response.body)) {
+      // Old structure: direct array
+      bubbles = response.body;
+    } else {
       validation.isValid = false;
-      validation.errors.push('Response body should be an array of bubbles');
+      validation.errors.push('Response body should contain an array of bubbles in response field or be an array itself');
       return validation;
     }
 
-    validation.bubbleCount = response.body.length;
+    validation.bubbleCount = bubbles.length;
 
     // Validate each bubble
-    response.body.forEach((bubble, index) => {
+    bubbles.forEach((bubble, index) => {
       if (!bubble.type || !['main', 'sub', 'cta'].includes(bubble.type)) {
         validation.errors.push(`Bubble ${index}: Invalid or missing type`);
         validation.isValid = false;
@@ -159,4 +178,4 @@ class AINaviChatClient {
   }
 }
 
-module.exports = AINaviChatClient;
+module.exports = { AINaviChatClient };

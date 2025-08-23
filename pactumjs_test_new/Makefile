@@ -9,6 +9,7 @@ CONCURRENCY ?= 5
 DURATION ?= 60
 TARGET_RPS ?= 2
 NO_SLACK ?= false
+MODEL ?= anthropic
 
 # FAQ test configuration
 INTERVAL ?= 1
@@ -34,6 +35,7 @@ help: ## Display this help message
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
 	@echo "  make test-single TEST_ID=ELEMENTARY_A-1"
+	@echo "  make test-single-model TEST_ID=ELEMENTARY_A-1 MODEL=openai"
 	@echo "  make test-grade GRADE=middle"
 	@echo "  make test-category CATEGORY='授業・カリキュラム'"
 	@echo "  make load-test CONCURRENCY=10 DURATION=120"
@@ -66,12 +68,33 @@ test-single: build ## Run a single test case (requires TEST_ID)
 		node scripts/run-tests.js --id=$(TEST_ID) --concurrency=1; \
 	fi
 
-test-grade: build ## Run tests filtered by grade
-	@echo "$(GREEN)Running tests for grade: $(GRADE)$(NC)"
+test-single-model: build ## Run a single test with specific AI model (requires TEST_ID and MODEL)
+	@if [ -z "$(TEST_ID)" ]; then \
+		echo "$(RED)Error: TEST_ID is required for single test$(NC)"; \
+		echo "Usage: make test-single-model TEST_ID=ELEMENTARY_A-1 MODEL=openai"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Running single test: $(TEST_ID) with model: $(MODEL)$(NC)"
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --grade=$(GRADE) --concurrency=1 --no-slack; \
+		node scripts/run-tests.js --id=$(TEST_ID) --model=$(MODEL) --concurrency=1 --no-slack; \
 	else \
-		node scripts/run-tests.js --grade=$(GRADE) --concurrency=1; \
+		node scripts/run-tests.js --id=$(TEST_ID) --model=$(MODEL) --concurrency=1; \
+	fi
+
+test-grade: build ## Run tests filtered by grade
+	@echo "$(GREEN)Running tests for grade: $(GRADE) with $(MODEL) model$(NC)"
+	@if [ "$(NO_SLACK)" = "true" ]; then \
+		node scripts/run-tests.js --grade=$(GRADE) --concurrency=1 --no-slack --model=$(MODEL); \
+	else \
+		node scripts/run-tests.js --grade=$(GRADE) --concurrency=1 --model=$(MODEL); \
+	fi
+
+test-grade-model: build ## Run tests filtered by grade with specific AI model
+	@echo "$(GREEN)Running tests for grade: $(GRADE) with model: $(MODEL)$(NC)"
+	@if [ "$(NO_SLACK)" = "true" ]; then \
+		node scripts/run-tests.js --grade=$(GRADE) --model=$(MODEL) --concurrency=1 --no-slack; \
+	else \
+		node scripts/run-tests.js --grade=$(GRADE) --model=$(MODEL) --concurrency=1; \
 	fi
 
 test-category: build ## Run tests filtered by category (requires CATEGORY)
@@ -88,14 +111,14 @@ test-category: build ## Run tests filtered by category (requires CATEGORY)
 	fi
 
 test-all: build ## Run all available tests (including FAQ)
-	@echo "$(GREEN)Running all tests (general + FAQ)...$(NC)"
+	@echo "$(GREEN)Running all tests (general + FAQ) with $(MODEL) model...$(NC)"
 	@echo "Merging test cases..."
 	@node scripts/merge-test-cases.js
 	@echo ""
 	@if [ "$(NO_SLACK)" = "true" ]; then \
-		node scripts/run-tests.js --json-file=src/data/json/merged-test-cases.json --concurrency=1 --no-slack; \
+		node scripts/run-tests.js --json-file=src/data/json/merged-test-cases.json --concurrency=1 --no-slack --model=$(MODEL); \
 	else \
-		node scripts/run-tests.js --json-file=src/data/json/merged-test-cases.json --concurrency=1; \
+		node scripts/run-tests.js --json-file=src/data/json/merged-test-cases.json --concurrency=1 --model=$(MODEL); \
 	fi
 	@echo ""
 	@echo "$(GREEN)All tests completed!$(NC)"
@@ -235,9 +258,10 @@ dev-test: ## Quick development test
 
 faq-all: ## Run all 47 FAQ test cases
 	@echo "$(GREEN)========================================$(NC)"
-	@echo "$(GREEN)47개 FAQ 테스트 전체 실행 시작$(NC)"
+	@echo "$(GREEN)47개 FAQ 테스트 전체 실행 시작 - $(MODEL) 모델$(NC)"
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "테스트 파일: $(FAQ_JSON_FILE)"
+	@echo "모델: $(MODEL)"
 	@echo "병렬 실행: 1개 (순차 실행)"
 	@echo "인터벌: $(INTERVAL)초"
 	@echo "최대 재시도: $(MAX_RETRIES)회"
@@ -246,7 +270,8 @@ faq-all: ## Run all 47 FAQ test cases
 		--json-file=$(FAQ_JSON_FILE) \
 		--concurrency=1 \
 		--interval=$(INTERVAL) \
-		--max-retries=$(MAX_RETRIES) || true
+		--max-retries=$(MAX_RETRIES) \
+		--model=$(MODEL) || true
 	@echo ""
 	@echo "$(GREEN)========================================$(NC)"
 	@echo "$(GREEN)FAQ 전체 테스트 완료!$(NC)"
@@ -263,12 +288,14 @@ faq-single: ## Run a single FAQ test (requires ID)
 	@echo "$(YELLOW)========================================$(NC)"
 	@echo "테스트 파일: $(FAQ_JSON_FILE)"
 	@echo "테스트 ID: $(ID)"
+	@echo "모델: $(MODEL)"
 	@echo ""
 	node scripts/run-tests.js \
 		--json-file=$(FAQ_JSON_FILE) \
 		--id=$(ID) \
 		--interval=$(INTERVAL) \
-		--max-retries=$(MAX_RETRIES) || true
+		--max-retries=$(MAX_RETRIES) \
+		--model=$(MODEL) || true
 	@echo ""
 	@echo "$(YELLOW)========================================$(NC)"
 	@echo "$(YELLOW)FAQ 단일 테스트 완료!$(NC)"
@@ -349,6 +376,64 @@ test-all-high: ## Run all high school FAQ tests (12 cases)
 		--grade=high \
 		--interval=$(INTERVAL) \
 		--max-retries=$(MAX_RETRIES) || true
+
+# =============================================================================
+# Model-specific Test Commands
+# =============================================================================
+
+test-compare-models: build ## Compare results between anthropic and openai models for a single test
+	@if [ -z "$(TEST_ID)" ]; then \
+		echo "$(RED)Error: TEST_ID is required for model comparison$(NC)"; \
+		echo "Usage: make test-compare-models TEST_ID=ELEMENTARY_A-1"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)========================================$(NC)"
+	@echo "$(GREEN)Comparing AI Models for test: $(TEST_ID)$(NC)"
+	@echo "$(GREEN)========================================$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Testing with Anthropic model...$(NC)"
+	@node scripts/run-tests.js --id=$(TEST_ID) --model=anthropic --concurrency=1 --no-slack || true
+	@echo ""
+	@echo "$(YELLOW)Testing with OpenAI model...$(NC)"
+	@node scripts/run-tests.js --id=$(TEST_ID) --model=openai --concurrency=1 --no-slack || true
+	@echo ""
+	@echo "$(GREEN)Model comparison completed!$(NC)"
+
+test-anthropic: build ## Run test with Anthropic model (requires TEST_ID)
+	@if [ -z "$(TEST_ID)" ]; then \
+		echo "$(RED)Error: TEST_ID is required$(NC)"; \
+		echo "Usage: make test-anthropic TEST_ID=ELEMENTARY_A-1"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Testing with Anthropic model: $(TEST_ID)$(NC)"
+	@node scripts/run-tests.js --id=$(TEST_ID) --model=anthropic --concurrency=1
+
+test-openai: build ## Run test with OpenAI model (requires TEST_ID)
+	@if [ -z "$(TEST_ID)" ]; then \
+		echo "$(RED)Error: TEST_ID is required$(NC)"; \
+		echo "Usage: make test-openai TEST_ID=ELEMENTARY_A-1"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Testing with OpenAI model: $(TEST_ID)$(NC)"
+	@node scripts/run-tests.js --id=$(TEST_ID) --model=openai --concurrency=1
+
+test-faq-model: ## Run FAQ test with specific model (requires ID and MODEL)
+	@if [ -z "$(ID)" ]; then \
+		echo "$(RED)Error: 테스트 ID를 지정해주세요$(NC)"; \
+		echo "사용법: make test-faq-model ID=INFANT-001 MODEL=openai"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)========================================$(NC)"
+	@echo "$(YELLOW)FAQ 테스트 실행 - Model: $(MODEL), ID: $(ID)$(NC)"
+	@echo "$(YELLOW)========================================$(NC)"
+	@node scripts/run-tests.js \
+		--json-file=$(FAQ_JSON_FILE) \
+		--id=$(ID) \
+		--model=$(MODEL) \
+		--interval=$(INTERVAL) \
+		--max-retries=$(MAX_RETRIES) || true
+	@echo ""
+	@echo "$(YELLOW)FAQ 테스트 완료!$(NC)"
 
 # Show default target
 .DEFAULT_GOAL := help

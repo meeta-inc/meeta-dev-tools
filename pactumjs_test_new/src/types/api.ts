@@ -9,6 +9,9 @@ export type GradeId = 'preschool' | 'elementary' | 'middle' | 'high';
 // 버블 타입 정의
 export type BubbleType = 'main' | 'sub' | 'cta';
 
+// AI 모델 타입 정의
+export type AIModel = 'anthropic' | 'openai';
+
 // 채팅 요청 인터페이스
 export interface ChatRequest {
   /** 8자리 클라이언트 ID (2문자 + 6숫자) */
@@ -23,6 +26,8 @@ export interface ChatRequest {
   message: string;
   /** 선택적 세션 ID */
   sessionId?: string;
+  /** AI 모델 선택 (기본값: 'anthropic') */
+  model?: AIModel;
 }
 
 // 버블 인터페이스

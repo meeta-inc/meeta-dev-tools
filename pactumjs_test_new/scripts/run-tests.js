@@ -66,6 +66,8 @@ class TestRunner {
         filters.additionalCases = parseInt(arg.split('=')[1]);
       } else if (arg.startsWith('--json-file=')) {
         options.jsonFile = arg.split('=')[1];
+      } else if (arg.startsWith('--model=')) {
+        options.model = arg.split('=')[1];
       }
     });
 
@@ -136,9 +138,10 @@ class TestRunner {
    * Execute a single test case with retry logic for 500 errors
    * @param {Object} testCase - Test case to execute
    * @param {number} maxRetries - Maximum number of retries (default: 5)
+   * @param {string} model - AI model to use (default: 'anthropic')
    * @returns {Promise<Object>} Test result
    */
-  async executeTest(testCase, maxRetries = 5) {
+  async executeTest(testCase, maxRetries = 5, model = 'anthropic') {
     let lastError = null;
     let attempt = 0;
 
@@ -153,7 +156,8 @@ class TestRunner {
           gradeId: testCase.grade,
           userId: testCase.userId,
           message: testCase.message,
-          sessionId: testCase.sessionId
+          sessionId: testCase.sessionId,
+          model: model  // Add model parameter
         };
 
         // Send API request
@@ -191,7 +195,8 @@ class TestRunner {
           validation: validation,
           timestamp: new Date().toISOString(),
           executionTime: Date.now() - startTime,
-          retryCount: attempt
+          retryCount: attempt,
+          model: model
         };
 
         // Log result
@@ -278,7 +283,7 @@ class TestRunner {
    * @returns {Promise<Array>} Test results
    */
   async executeTests(testCases, options = {}) {
-    const { dryRun = false, concurrency, interval = 1000, maxRetries = 5 } = options; // 1초 기본 인터벌, 5회 기본 리트라이
+    const { dryRun = false, concurrency, interval = 1000, maxRetries = 5, model = 'anthropic' } = options; // 1초 기본 인터벌, 5회 기본 리트라이
     const finalConcurrency = concurrency || config.test.concurrency;
     
     if (dryRun) {
@@ -298,7 +303,7 @@ class TestRunner {
 
     for (let i = 0; i < testCases.length; i++) {
       // Add test to execution queue
-      const testPromise = this.executeTest(testCases[i], maxRetries);
+      const testPromise = this.executeTest(testCases[i], maxRetries, model);
       executing.push(testPromise);
 
       // Wait for batch completion when reaching concurrency limit or end
@@ -421,7 +426,7 @@ class TestRunner {
       let sheetsUrl = null;
       if (!options.noGsheet) {
         try {
-          const gsheetResult = await this.sheetsService.uploadResults(results, options.testType || 'Results');
+          const gsheetResult = await this.sheetsService.uploadResults(results, options.testType || 'Results', options.model || 'anthropic');
           sheetsUrl = gsheetResult.url || `https://docs.google.com/spreadsheets/d/${config.gsheet.spreadsheetId}`;
           logger.info('Results uploaded to Google Sheets', { url: sheetsUrl });
           
@@ -650,7 +655,7 @@ class TestRunner {
         });
       }
 
-      // Execute tests
+      // Execute tests (pass all options including model)
       const results = await this.executeTests(testCases, options);
       
       // Generate summary
@@ -684,7 +689,7 @@ class TestRunner {
 
       // Send summary notification
       if (!options.noSlack) {
-        await this.slackService.sendTestSummary(summary);
+        await this.slackService.sendTestSummary(summary, options.model || 'anthropic');
         
         // Send detailed results for single tests or single with additional cases
         if (filters.testId) {
@@ -699,7 +704,7 @@ class TestRunner {
             
             await this.slackService.sendMessage(message);
           } else if (results.length === 1) {
-            await this.slackService.sendSingleTestDetails(results[0], summary);
+            await this.slackService.sendSingleTestDetails(results[0], summary, options.model || 'anthropic');
           }
         }
       }

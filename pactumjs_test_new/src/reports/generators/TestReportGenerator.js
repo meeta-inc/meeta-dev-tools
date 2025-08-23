@@ -205,12 +205,24 @@ class TestReportGenerator {
           normalizedJson = responseBody.replace(/""/g, '"');
         }
         
-        // JSON 배열 파싱 시도
-        const parsedResponse = JSON.parse(normalizedJson);
+        // JSON 파싱 시도
+        const parsedResponse = typeof normalizedJson === 'string' ? JSON.parse(normalizedJson) : normalizedJson;
         
-        if (Array.isArray(parsedResponse)) {
+        // 버블 배열 추출 (새로운 구조와 이전 구조 모두 지원)
+        let bubbles;
+        if (parsedResponse && parsedResponse.response && Array.isArray(parsedResponse.response)) {
+          // 새로운 구조: {"response": [...], "tool": ...}
+          bubbles = parsedResponse.response;
+        } else if (Array.isArray(parsedResponse)) {
+          // 이전 구조: 직접 배열
+          bubbles = parsedResponse;
+        } else {
+          bubbles = null;
+        }
+        
+        if (bubbles) {
           // 배열의 각 객체를 개별 메시지로 생성
-          parsedResponse.forEach((item, index) => {
+          bubbles.forEach((item, index) => {
             if (item && item.text) {
               messages.push({
                 type: 'assistant',
@@ -222,10 +234,10 @@ class TestReportGenerator {
             }
           });
         } else {
-          // 배열이 아닌 경우 기본 처리
+          // 버블 배열이 아닌 경우 기본 처리
           messages.push({
             type: 'assistant',
-            content: responseBody,
+            content: typeof responseBody === 'object' ? JSON.stringify(responseBody, null, 2) : responseBody,
             timestamp: test.timestamp || new Date().toISOString(),
             style: 'assistant',
             bubbleType: test.response.bubbleType || 'main'
@@ -235,7 +247,7 @@ class TestReportGenerator {
         // JSON 파싱 실패시 원본 내용 그대로 표시
         messages.push({
           type: 'assistant',
-          content: responseBody,
+          content: typeof responseBody === 'object' ? JSON.stringify(responseBody, null, 2) : responseBody,
           timestamp: test.timestamp || new Date().toISOString(),
           style: 'assistant',
           bubbleType: test.response.bubbleType || 'main'

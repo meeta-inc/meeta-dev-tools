@@ -296,6 +296,11 @@ class GoogleSheetsService {
         bubbles = JSON.parse(responseBody);
       }
       
+      // 새로운 구조 처리: {"response": [...], "tool": ...}
+      if (bubbles && bubbles.response && Array.isArray(bubbles.response)) {
+        bubbles = bubbles.response;
+      }
+      
       // 배열이 아닌 경우 빈 객체 반환
       if (!Array.isArray(bubbles)) {
         return { main: '', sub: '', cta: '' };
@@ -323,9 +328,10 @@ class GoogleSheetsService {
    * Upload test results to a new Google Sheets tab with unique naming
    * @param {Array} results - Test results array
    * @param {string} testType - Type of test for sheet naming
+   * @param {string} model - AI model used for the test
    * @returns {Promise<Object>} Upload result with sheet URL
    */
-  async uploadResults(results, testType = 'Results') {
+  async uploadResults(results, testType = 'Results', model = 'anthropic') {
     await this.initialize();
 
     const now = new Date();
@@ -334,7 +340,9 @@ class GoogleSheetsService {
       .replace(/:/g, '-')
       .replace(/\..+/, '');
     
-    const sheetName = `${testType}_${timestamp}`;
+    // Add model prefix to sheet name
+    const modelPrefix = model === 'openai' ? 'OpenAI' : 'Anthropic';
+    const sheetName = `${modelPrefix}_${testType}_${timestamp}`;
 
     try {
       // Create new sheet in existing spreadsheet

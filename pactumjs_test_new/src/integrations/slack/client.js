@@ -61,9 +61,10 @@ class SlackService {
    * Send single test detailed results to Slack
    * @param {Object} testResult - Single test result
    * @param {Object} summary - Test summary
+   * @param {string} model - AI model used for the test
    * @returns {Promise<void>}
    */
-  async sendSingleTestDetails(testResult, summary) {
+  async sendSingleTestDetails(testResult, summary, model = 'anthropic') {
     if (!this.webhookUrl) {
       logger.warn('Slack webhook not configured - skipping notification');
       return;
@@ -76,24 +77,35 @@ class SlackService {
       const statusIcon = success ? ':white_check_mark:' : ':x:';
       const statusText = success ? 'Success' : 'Failed';
       
+      // Model icon
+      const modelIcon = model === 'openai' ? ':openai:' : ':robot_face:';
+      const modelName = model === 'openai' ? 'OpenAI' : 'Anthropic';
+      
       let detailsText = `Test ID: ${testId}\n`;
+      detailsText += `Model: ${modelIcon} ${modelName}\n`;
       detailsText += `Status: ${statusIcon} ${statusText}\n`;
       detailsText += `Response Time: ${responseTime}ms\n`;
       detailsText += `Grade: ${grade || 'N/A'}\n`;
       detailsText += `Category: ${category || 'N/A'}\n`;
       
+      // Extract bubbles from response (handles both old and new structure)
+      let bubbles = body;
+      if (body && body.response && Array.isArray(body.response)) {
+        bubbles = body.response;
+      }
+      
       // Add bubble count if response is array
-      if (Array.isArray(body)) {
-        detailsText += `Bubble Count: ${body.length}\n`;
+      if (Array.isArray(bubbles)) {
+        detailsText += `Bubble Count: ${bubbles.length}\n`;
       }
       
       detailsText += `\n:question: User Question:\n${message}\n`;
       
       // Add AI response details if available
-      if (Array.isArray(body) && body.length > 0) {
+      if (Array.isArray(bubbles) && bubbles.length > 0) {
         detailsText += `\n:clipboard: AI Response Details:\n`;
         
-        body.forEach((bubble, index) => {
+        bubbles.forEach((bubble, index) => {
           const bubbleType = bubble.type || 'unknown';
           const typeLabel = bubbleType === 'main' ? 'main' : 
                            bubbleType === 'sub' ? 'sub' : 
@@ -169,9 +181,10 @@ class SlackService {
   /**
    * Send test results summary to Slack
    * @param {Object} summary - Test results summary
+   * @param {string} model - AI model used for the test
    * @returns {Promise<void>}
    */
-  async sendTestSummary(summary) {
+  async sendTestSummary(summary, model = 'anthropic') {
     if (!this.webhookUrl) {
       logger.warn('Slack webhook not configured - skipping notification');
       return;
@@ -189,12 +202,16 @@ class SlackService {
         color = 'warning'; // yellow
       }
 
+      // Model info
+      const modelIcon = model === 'openai' ? '🟢' : '🔵';
+      const modelName = model === 'openai' ? 'OpenAI' : 'Anthropic';
+      
       const message = {
         username: this.username,
         attachments: [
           {
             color: color,
-            title: '🤖 AI Navi Chat API Test Results',
+            title: `🤖 AI Navi Chat API Test Results (${modelIcon} ${modelName})`,
             fields: [
               {
                 title: 'Total Tests',
