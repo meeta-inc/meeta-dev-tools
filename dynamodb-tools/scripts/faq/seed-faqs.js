@@ -30,9 +30,9 @@ const faqsData = require('./faq-data-parsed.js');
 // 카테고리 ID 매핑
 function getCategoryId(category) {
   const categoryMap = {
-    '授業・カリキュラム': 'CAT000000',
-    '通塾・学習時間': 'CAT000001',
-    '料金・制度': 'CAT000002'
+    '授業・カリキュラム': 'CAT202508150001',
+    '通塾・学習時間': 'CAT202508150002',
+    '料金・制度': 'CAT202508150003'
   };
   return categoryMap[category] || 'CAT000000';
 }
