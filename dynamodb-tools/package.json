@@ -8,7 +8,13 @@
     "seed:faq:data": "node scripts/faq/seed-faqs.js",
     "validate:faq": "node scripts/faq/validate-data.js",
     "backup:faq": "node scripts/faq/backup-data.js",
-    "restore:faq": "node scripts/faq/restore-data.js"
+    "restore:faq": "node scripts/faq/restore-data.js",
+    "seed:source": "node scripts/source/seed-sources.js",
+    "verify:source": "node scripts/source/verify-sources.js",
+    "delete:source": "node scripts/source/delete-sources.js",
+    "seed:conversation": "node scripts/conversation/seed-conversations.js",
+    "verify:conversation": "node scripts/conversation/verify-conversations.js",
+    "delete:conversation": "node scripts/conversation/delete-conversations.js"
   },
   "keywords": [
     "dynamodb",
