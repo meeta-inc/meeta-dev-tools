@@ -20,7 +20,7 @@ const readline = require('readline');
 // 환경 설정
 const ENV = process.env.NODE_ENV || 'development';
 const AWS_REGION = process.env.AWS_REGION || 'ap-northeast-1';
-const TABLE_NAME = `ai-navi-sources-${ENV}`;
+const TABLE_NAME = ENV === 'development' ? 'ai-navi-sources-dev' : `ai-navi-sources-${ENV}`;
 
 // DynamoDB 클라이언트 설정
 const client = new DynamoDBClient({

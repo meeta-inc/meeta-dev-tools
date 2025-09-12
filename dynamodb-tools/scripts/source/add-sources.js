@@ -26,68 +26,108 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 
-// 추가할 데이터 (ACTIVE 2개, ARCHIVED 2개)
+// 추가할 데이터 (ACTIVE 2개, ARCHIVED 2개) - 버전 형식 001-999
 const newSources = [
   // ACTIVE 상태 소스 2개
   {
-    sourceId: uuidv4(),
+    sourceId: `src_${uuidv4().slice(0, 8)}`,
     clientId: 'RS000001',
+    appId: 'app_001',
     sourceType: 'FILE',
     name: 'course_guide_2024.pdf',
     description: '2024年度コースガイド',
-    version: '1.0.0',
+    version: '002',
     priority: 3,
     status: 'ACTIVE',
     content: {
+      fileUrl: `https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/source/RS000001/${uuidv4()}.pdf`,
       fileName: 'course_guide_2024.pdf',
       fileSize: '8.2MB',
-      mimeType: 'application/pdf',
-      fileUrl: 'https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/file/original/course_guide_2024.pdf'
+      mimeType: 'application/pdf'
+    },
+    version_history: [
+      {
+        version: '001',
+        content: {
+          fileUrl: `https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/source/RS000001/${uuidv4()}.pdf`,
+          fileName: 'course_guide_2024_draft.pdf',
+          fileSize: '7.8MB',
+          mimeType: 'application/pdf'
+        },
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ],
+    metadata: {
+      fileFormat: 'PDF',
+      pageCount: 120,
+      language: 'ja'
     }
   },
   {
-    sourceId: uuidv4(),
+    sourceId: `src_${uuidv4().slice(0, 8)}`,
     clientId: 'RS000001',
+    appId: 'app_001',
     sourceType: 'LINK',
     name: '錬成会Instagram',
     description: '錬成会公式Instagram',
-    version: '1.0.0',
+    version: '001',
     priority: 4,
     status: 'ACTIVE',
     content: {
       url: 'https://www.instagram.com/rensei_official/',
       allowCrossDomain: true
+    },
+    version_history: [],
+    metadata: {
+      crawlDepth: 1,
+      lastCrawledAt: new Date().toISOString(),
+      crawlStatus: 'COMPLETED'
     }
   },
   // ARCHIVED 상태 소스 2개
   {
-    sourceId: uuidv4(),
+    sourceId: `src_${uuidv4().slice(0, 8)}`,
     clientId: 'RS000001',
+    appId: 'app_001',
     sourceType: 'FILE',
     name: 'old_curriculum_2023.pdf',
     description: '2023年度カリキュラム（旧版）',
-    version: '0.9.0',
+    version: '099',
     priority: 100,
     status: 'ARCHIVED',
     content: {
+      fileUrl: `https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/source/RS000001/${uuidv4()}.pdf`,
       fileName: 'old_curriculum_2023.pdf',
       fileSize: '5.5MB',
-      mimeType: 'application/pdf',
-      fileUrl: 'https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/file/archived/old_curriculum_2023.pdf'
+      mimeType: 'application/pdf'
+    },
+    version_history: [],
+    metadata: {
+      fileFormat: 'PDF',
+      pageCount: 85,
+      language: 'ja',
+      archiveReason: 'Outdated curriculum'
     }
   },
   {
-    sourceId: uuidv4(),
+    sourceId: `src_${uuidv4().slice(0, 8)}`,
     clientId: 'RS000001',
+    appId: 'app_001',
     sourceType: 'LINK',
     name: '旧ブログサイト',
     description: '錬成会旧ブログ（アーカイブ）',
-    version: '0.8.0',
+    version: '999',
     priority: 101,
     status: 'ARCHIVED',
     content: {
       url: 'https://old-blog.rensei.jp/',
       allowCrossDomain: false
+    },
+    version_history: [],
+    metadata: {
+      crawlDepth: 0,
+      archiveReason: 'Site decommissioned',
+      lastCrawledAt: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()
     }
   }
 ];
@@ -120,13 +160,14 @@ async function addSources() {
         GSI1PK: `STATUS#${source.status}`,
         GSI1SK: `PRIORITY#${String(source.priority).padStart(5, '0')}#SOURCE#${source.sourceId}`,
         GSI2PK: `TYPE#${source.sourceType}`,
-        GSI2SK: `CLIENT#${source.clientId}#UPDATED#${now}`,
+        GSI2SK: `CLIENT#${source.clientId}#VERSION#${source.version}`,
         GSI3PK: `CLIENT#${source.clientId}#TYPE#${source.sourceType}`,
         GSI3SK: `STATUS#${source.status}#NAME#${source.name}`,
         
         // Attributes
         sourceId: source.sourceId,
         clientId: source.clientId,
+        appId: source.appId,
         sourceType: source.sourceType,
         name: source.name,
         description: source.description,
@@ -135,7 +176,13 @@ async function addSources() {
         status: source.status,
         content: source.content,
         
-        // Metadata
+        // Version History
+        version_history: source.version_history || [],
+        
+        // Additional Metadata
+        metadata: source.metadata || {},
+        
+        // Timestamps
         createdAt: now,
         createdBy: 'system',
         updatedAt: now,

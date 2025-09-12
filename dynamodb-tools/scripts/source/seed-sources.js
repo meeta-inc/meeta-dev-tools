@@ -16,7 +16,7 @@ const { v4: uuidv4 } = require('uuid');
 // 환경 설정
 const ENV = process.env.NODE_ENV || 'development';
 const AWS_REGION = process.env.AWS_REGION || 'ap-northeast-1';
-const TABLE_NAME = `ai-navi-sources-${ENV}`;
+const TABLE_NAME = ENV === 'development' ? 'ai-navi-sources-dev' : `ai-navi-sources-${ENV}`;
 
 // DynamoDB 클라이언트 설정
 const client = new DynamoDBClient({
@@ -26,36 +26,50 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 
-// 초기 데이터
+// 초기 데이터 (버전 형식 001-999로 변경)
 const initialSources = [
   {
-    sourceId: uuidv4(),
+    sourceId: `src_${uuidv4().slice(0, 8)}`,
     clientId: 'RS000001',
+    appId: 'app_001',
     sourceType: 'FILE',
     name: 'rensei_pamplet.pdf',
     description: '錬成会説明パンフレット',
-    version: '1.0.0',
+    version: '001',
     priority: 1,
     status: 'ACTIVE',
     content: {
+      fileUrl: `https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/source/RS000001/${uuidv4()}.pdf`,
       fileName: 'rensei_pamplet.pdf',
       fileSize: '10.4MB',
-      mimeType: 'application/pdf',
-      fileUrl: 'https://meeta-ai-navi.s3.ap-northeast-1.amazonaws.com/file/original/rensei_pamplet.pdf'
+      mimeType: 'application/pdf'
+    },
+    version_history: [],
+    metadata: {
+      fileFormat: 'PDF',
+      pageCount: 45,
+      language: 'ja'
     }
   },
   {
-    sourceId: uuidv4(),
+    sourceId: `src_${uuidv4().slice(0, 8)}`,
     clientId: 'RS000001',
+    appId: 'app_001',
     sourceType: 'LINK',
     name: '3.14ホームページ',
     description: '3.14ホームページ',
-    version: '1.0.0',
+    version: '001',
     priority: 2,
     status: 'ACTIVE',
     content: {
       url: 'https://www.314community.com/',
       allowCrossDomain: true
+    },
+    version_history: [],
+    metadata: {
+      crawlDepth: 2,
+      lastCrawledAt: new Date().toISOString(),
+      crawlStatus: 'COMPLETED'
     }
   }
 ];
@@ -88,13 +102,14 @@ async function seedSources() {
         GSI1PK: `STATUS#${source.status}`,
         GSI1SK: `PRIORITY#${String(source.priority).padStart(5, '0')}#SOURCE#${source.sourceId}`,
         GSI2PK: `TYPE#${source.sourceType}`,
-        GSI2SK: `CLIENT#${source.clientId}#UPDATED#${now}`,
+        GSI2SK: `CLIENT#${source.clientId}#VERSION#${source.version}`,
         GSI3PK: `CLIENT#${source.clientId}#TYPE#${source.sourceType}`,
         GSI3SK: `STATUS#${source.status}#NAME#${source.name}`,
         
         // Attributes
         sourceId: source.sourceId,
         clientId: source.clientId,
+        appId: source.appId,
         sourceType: source.sourceType,
         name: source.name,
         description: source.description,
@@ -103,7 +118,13 @@ async function seedSources() {
         status: source.status,
         content: source.content,
         
-        // Metadata
+        // Version History
+        version_history: source.version_history || [],
+        
+        // Additional Metadata
+        metadata: source.metadata || {},
+        
+        // Timestamps
         createdAt: now,
         createdBy: 'system',
         updatedAt: now,
