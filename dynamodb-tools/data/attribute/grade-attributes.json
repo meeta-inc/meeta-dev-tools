@@ -1,0 +1,115 @@
+{
+  "attributes": [
+    {
+      "PK": "CLIENT#RS000001",
+      "SK": "ATTRIBUTE#preschool",
+      "attributeId": "preschool",
+      "clientId": "RS000001",
+      "attributeGroup": "grade",
+      "attributeName": "幼児",
+      "attributeIcon": {
+        "type": "emoji",
+        "value": "🐣"
+      },
+      "subAttributes": [
+        {"id": "3years", "name": "3歳", "order": 1},
+        {"id": "4years", "name": "4歳", "order": 2},
+        {"id": "5years", "name": "5歳", "order": 3}
+      ],
+      "priority": 1,
+      "status": "ACTIVE",
+      "GSI1PK": "GROUP#grade",
+      "GSI1SK": "PRIORITY#001#ATTRIBUTE#preschool",
+      "GSI2PK": "STATUS#ACTIVE",
+      "GSI2SK": "CLIENT#RS000001#GROUP#grade",
+      "GSI3PK": "CLIENT#RS000001#STATUS#ACTIVE",
+      "GSI3SK": "GROUP#grade#NAME#幼児",
+      "createdAt": "2025-01-16T10:00:00Z",
+      "createdBy": "admin@example.com"
+    },
+    {
+      "PK": "CLIENT#RS000001",
+      "SK": "ATTRIBUTE#elementary",
+      "attributeId": "elementary",
+      "clientId": "RS000001",
+      "attributeGroup": "grade",
+      "attributeName": "小学生",
+      "attributeIcon": {
+        "type": "emoji",
+        "value": "👦"
+      },
+      "subAttributes": [
+        {"id": "sho1", "name": "小1", "order": 1},
+        {"id": "sho2", "name": "小2", "order": 2},
+        {"id": "sho3", "name": "小3", "order": 3},
+        {"id": "sho4", "name": "小4", "order": 4},
+        {"id": "sho5", "name": "小5", "order": 5},
+        {"id": "sho6", "name": "小6", "order": 6}
+      ],
+      "priority": 2,
+      "status": "ACTIVE",
+      "GSI1PK": "GROUP#grade",
+      "GSI1SK": "PRIORITY#002#ATTRIBUTE#elementary",
+      "GSI2PK": "STATUS#ACTIVE",
+      "GSI2SK": "CLIENT#RS000001#GROUP#grade",
+      "GSI3PK": "CLIENT#RS000001#STATUS#ACTIVE",
+      "GSI3SK": "GROUP#grade#NAME#小学生",
+      "createdAt": "2025-01-16T10:00:00Z",
+      "createdBy": "admin@example.com"
+    },
+    {
+      "PK": "CLIENT#RS000001",
+      "SK": "ATTRIBUTE#middle",
+      "attributeId": "middle",
+      "clientId": "RS000001",
+      "attributeGroup": "grade",
+      "attributeName": "中学生",
+      "attributeIcon": {
+        "type": "emoji",
+        "value": "🧑‍🎓"
+      },
+      "subAttributes": [
+        {"id": "chu1", "name": "中1", "order": 1},
+        {"id": "chu2", "name": "中2", "order": 2},
+        {"id": "chu3", "name": "中3", "order": 3}
+      ],
+      "priority": 3,
+      "status": "ACTIVE",
+      "GSI1PK": "GROUP#grade",
+      "GSI1SK": "PRIORITY#003#ATTRIBUTE#middle",
+      "GSI2PK": "STATUS#ACTIVE",
+      "GSI2SK": "CLIENT#RS000001#GROUP#grade",
+      "GSI3PK": "CLIENT#RS000001#STATUS#ACTIVE",
+      "GSI3SK": "GROUP#grade#NAME#中学生",
+      "createdAt": "2025-01-16T10:00:00Z",
+      "createdBy": "admin@example.com"
+    },
+    {
+      "PK": "CLIENT#RS000001",
+      "SK": "ATTRIBUTE#high",
+      "attributeId": "high",
+      "clientId": "RS000001",
+      "attributeGroup": "grade",
+      "attributeName": "高校生",
+      "attributeIcon": {
+        "type": "emoji",
+        "value": "👩‍🎓"
+      },
+      "subAttributes": [
+        {"id": "kou1", "name": "高1", "order": 1},
+        {"id": "kou2", "name": "高2", "order": 2},
+        {"id": "kou3", "name": "高3", "order": 3}
+      ],
+      "priority": 4,
+      "status": "ACTIVE",
+      "GSI1PK": "GROUP#grade",
+      "GSI1SK": "PRIORITY#004#ATTRIBUTE#high",
+      "GSI2PK": "STATUS#ACTIVE",
+      "GSI2SK": "CLIENT#RS000001#GROUP#grade",
+      "GSI3PK": "CLIENT#RS000001#STATUS#ACTIVE",
+      "GSI3SK": "GROUP#grade#NAME#高校生",
+      "createdAt": "2025-01-16T10:00:00Z",
+      "createdBy": "admin@example.com"
+    }
+  ]
+}
