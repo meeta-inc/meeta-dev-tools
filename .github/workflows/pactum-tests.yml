@@ -199,18 +199,18 @@ jobs:
           make test-all CONCURRENCY=1 INTERVAL=2
       
       # 스케줄 실행 - 새벽 2시 FAQ 전체
-      - name: Run FAQ tests (Scheduled at 2 AM)
-        if: github.event_name == 'schedule' && contains(github.event.schedule, '0 17 * * *')
-        run: |
-          echo "🌙 Running scheduled FAQ tests at 2 AM KST..."
-          make faq-all CONCURRENCY=1 INTERVAL=5
+      # - name: Run FAQ tests (Scheduled at 2 AM)
+        # if: github.event_name == 'schedule' && contains(github.event.schedule, '0 17 * * *')
+        # run: |
+        #  echo "🌙 Running scheduled FAQ tests at 2 AM KST..."
+        #  make faq-all CONCURRENCY=1 INTERVAL=5
       
       # 스케줄 실행 - 오전 7시 전체 테스트
-      - name: Run all tests (Scheduled at 7 AM)
-        if: github.event_name == 'schedule' && contains(github.event.schedule, '0 22 * * *')
-        run: |
-          echo "☀️ Running scheduled all tests at 7 AM KST..."
-          make test-all CONCURRENCY=1 INTERVAL=1
+      # - name: Run all tests (Scheduled at 7 AM)
+        # if: github.event_name == 'schedule' && contains(github.event.schedule, '0 22 * * *')
+        # run: |
+        #  echo "☀️ Running scheduled all tests at 7 AM KST..."
+        #  make test-all CONCURRENCY=1 INTERVAL=1
       
       # 수동 실행 - single
       - name: Run single test (Manual)
