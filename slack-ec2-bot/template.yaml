@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Slack EC2 Bot - Lambda + API Gateway
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs20.x
+    MemorySize: 256
+
+Parameters:
+  SlackBotToken:
+    Type: String
+    NoEcho: true
+    Description: Slack Bot User OAuth Token (xoxb-...)
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+    Description: Slack App Signing Secret
+  AlertChannelId:
+    Type: String
+    Default: ''
+    Description: 감사 로그를 전송할 Slack 채널 ID
+  AllowedChannelIds:
+    Type: String
+    Default: ''
+    Description: /ec2 허용 채널 ID (쉼표 구분, 비우면 전체 허용)
+  Ec2NameFilter:
+    Type: String
+    Default: 'devcontainer'
+    Description: EC2 Name 태그 필터 (포함 검색, 비우면 전체 조회)
+
+Resources:
+  SlackEc2BotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: src/index.handler
+      Environment:
+        Variables:
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+          ALERT_CHANNEL_ID: !Ref AlertChannelId
+          ALLOWED_CHANNEL_IDS: !Ref AllowedChannelIds
+          EC2_REGION: ap-northeast-1
+          EC2_NAME_FILTER: !Ref Ec2NameFilter
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ec2:DescribeInstances
+                - ec2:StartInstances
+                - ec2:StopInstances
+              Resource: '*'
+      Events:
+        SlackEvents:
+          Type: Api
+          Properties:
+            Path: /slack/events
+            Method: post
+        KeepWarm:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Description: Lambda 콜드 스타트 방지
+
+Outputs:
+  SlackEventsUrl:
+    Description: Slack App에 설정할 Request URL
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/slack/events'

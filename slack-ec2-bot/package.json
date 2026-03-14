@@ -1,0 +1,15 @@
+{
+  "name": "slack-ec2-bot",
+  "version": "1.0.0",
+  "description": "Slack bot for EC2 instance management via slash commands",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "sam build",
+    "deploy": "sam deploy"
+  },
+  "dependencies": {
+    "@slack/bolt": "^3.15.0",
+    "@aws-sdk/client-ec2": "^3.0.0"
+  },
+  "devDependencies": {}
+}
