@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Slack Infra Bot - EC2 + Dev 환경 관리 (/ec2, /dev 커맨드)
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs20.x
+    MemorySize: 256
+
+Parameters:
+  SlackBotToken:
+    Type: String
+    NoEcho: true
+    Description: Slack Bot User OAuth Token (xoxb-...)
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+    Description: Slack App Signing Secret
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Description: GitHub Personal Access Token (workflow_dispatch 권한)
+  GitHubOwner:
+    Type: String
+    Description: GitHub 레포지토리 소유자 (org 또는 user)
+  GitHubRepo:
+    Type: String
+    Default: ai-bridge-infra
+    Description: GitHub 레포지토리 이름
+  GitHubWorkflowFile:
+    Type: String
+    Default: scheduled-env-control.yml
+    Description: 트리거할 GitHub Actions workflow 파일명
+  GitHubRef:
+    Type: String
+    Default: main
+    Description: workflow_dispatch 대상 브랜치
+  SupabaseUrl:
+    Type: String
+    Description: Supabase 프로젝트 URL
+  SupabaseServiceRoleKey:
+    Type: String
+    NoEcho: true
+    Description: Supabase Service Role Key
+  SsmParameterPrefix:
+    Type: String
+    Default: /ai-bridge/dev/env-control
+    Description: SSM Parameter Store 접두사
+  AlertChannelId:
+    Type: String
+    Default: ''
+    Description: 감사 로그를 전송할 Slack 채널 ID
+  AllowedChannelIds:
+    Type: String
+    Default: ''
+    Description: 허용 채널 ID (쉼표 구분, 비우면 전체 허용)
+  Ec2NameFilter:
+    Type: String
+    Default: devcontainer
+    Description: EC2 Name 태그 필터 (포함 검색)
+  Ec2Region:
+    Type: String
+    Default: ap-northeast-1
+    Description: EC2 인스턴스가 있는 AWS 리전
+
+Resources:
+  SlackDevBotFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: src/index.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+          GITHUB_TOKEN: !Ref GitHubToken
+          GITHUB_OWNER: !Ref GitHubOwner
+          GITHUB_REPO: !Ref GitHubRepo
+          GITHUB_WORKFLOW_FILE: !Ref GitHubWorkflowFile
+          GITHUB_REF: !Ref GitHubRef
+          SUPABASE_URL: !Ref SupabaseUrl
+          SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
+          SSM_PARAMETER_PREFIX: !Ref SsmParameterPrefix
+          ALERT_CHANNEL_ID: !Ref AlertChannelId
+          ALLOWED_CHANNEL_IDS: !Ref AllowedChannelIds
+          EC2_REGION: !Ref Ec2Region
+          EC2_NAME_FILTER: !Ref Ec2NameFilter
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub 'arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter${SsmParameterPrefix}/*'
+            - Effect: Allow
+              Action:
+                - ec2:DescribeInstances
+                - ec2:StartInstances
+                - ec2:StopInstances
+              Resource: '*'
+      Events:
+        SlackEvents:
+          Type: Api
+          Properties:
+            Path: /slack/events
+            Method: post
+        KeepWarm:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Description: Lambda 콜드 스타트 방지
+            Input: '{"source": "aws.events", "action": "keep-warm"}'
+        ScheduleCheck:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 minute)
+            Description: 반복 스케줄 체크 및 실행
+            Input: '{"source": "aws.events", "action": "schedule-check"}'
+
+Outputs:
+  SlackEventsUrl:
+    Description: Slack App에 설정할 Request URL
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/slack/events'

@@ -1,0 +1,12 @@
+# sam deploy 설정
+# 첫 배포 시 `sam deploy --guided`로 파라미터를 입력하면 이 파일이 자동 업데이트됩니다.
+
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "slack-dev-bot"
+resolve_s3 = true
+s3_prefix = "slack-dev-bot"
+region = "ap-northeast-2"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
