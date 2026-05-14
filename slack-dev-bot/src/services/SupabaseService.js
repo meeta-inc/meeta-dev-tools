@@ -165,6 +165,86 @@ class SupabaseService {
       .eq('id', id);
     if (error) throw error;
   }
+
+  // ──────────────────────────────────────────
+  // uat1_reservations (UAT1 환경 예약)
+  //
+  // 스키마: id UUID, reservation_date DATE, reserved_by, reserved_via,
+  // reason, status (active/cancelled/completed), created_at, updated_at,
+  // cancelled_at, cancelled_by
+  // 제약: chk_weekday_only (월~금만), chk_status_enum,
+  //       uq_uat1_active_per_day (1일 1 active)
+  // ──────────────────────────────────────────
+
+  /**
+   * UAT1 활성 예약 목록을 조회한다.
+   * @param {string} [tableName] - 기본 'uat1_reservations'. env 로 override 가능.
+   */
+  async getActiveUat1Reservations(tableName = 'uat1_reservations') {
+    const { data, error } = await this.supabase
+      .from(tableName)
+      .select('*')
+      .eq('status', 'active')
+      .order('reservation_date', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  }
+
+  /**
+   * UAT1 예약 단건 조회 (ID).
+   * @param {string} id
+   * @param {string} [tableName]
+   */
+  async getUat1Reservation(id, tableName = 'uat1_reservations') {
+    const { data, error } = await this.supabase
+      .from(tableName)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  }
+
+  /**
+   * UAT1 예약을 생성한다.
+   * @param {{ reservation_date: string, reserved_by: string, reserved_via?: string, reason?: string }} reservation
+   * @param {string} [tableName]
+   */
+  async createUat1Reservation(reservation, tableName = 'uat1_reservations') {
+    const payload = {
+      reservation_date: reservation.reservation_date,
+      reserved_by: reservation.reserved_by,
+      reserved_via: reservation.reserved_via || 'slack',
+      reason: reservation.reason || null,
+      status: 'active',
+    };
+    const { data, error } = await this.supabase
+      .from(tableName)
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * UAT1 예약을 취소한다.
+   * @param {string} id - 예약 ID
+   * @param {string} [cancelledBy] - 취소한 Slack user_id
+   * @param {string} [tableName]
+   */
+  async cancelUat1Reservation(id, cancelledBy = null, tableName = 'uat1_reservations') {
+    const patch = {
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+    };
+    if (cancelledBy) patch.cancelled_by = cancelledBy;
+    const { error } = await this.supabase
+      .from(tableName)
+      .update(patch)
+      .eq('id', id);
+    if (error) throw error;
+  }
 }
 
 module.exports = SupabaseService;

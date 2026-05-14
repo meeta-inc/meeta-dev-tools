@@ -47,6 +47,18 @@ Parameters:
     Type: String
     Default: /ai-bridge/dev/env-control
     Description: SSM Parameter Store 접두사
+  Uat1WorkflowFile:
+    Type: String
+    Default: uat1-env-control.yml
+    Description: UAT1 환경 GitHub Actions workflow 파일명
+  Uat1SsmParameterPrefix:
+    Type: String
+    Default: /ai-bridge/uat1/env-control
+    Description: UAT1 SSM Parameter Store 접두사
+  Uat1ReservationsTable:
+    Type: String
+    Default: uat1_reservations
+    Description: UAT1 예약 테이블명 (Supabase main branch)
   AlertChannelId:
     Type: String
     Default: ''
@@ -83,6 +95,9 @@ Resources:
           SUPABASE_URL: !Ref SupabaseUrl
           SUPABASE_SERVICE_ROLE_KEY: !Ref SupabaseServiceRoleKey
           SSM_PARAMETER_PREFIX: !Ref SsmParameterPrefix
+          UAT1_WORKFLOW_FILE: !Ref Uat1WorkflowFile
+          UAT1_SSM_PARAMETER_PREFIX: !Ref Uat1SsmParameterPrefix
+          UAT1_RESERVATIONS_TABLE: !Ref Uat1ReservationsTable
           ALERT_CHANNEL_ID: !Ref AlertChannelId
           ALLOWED_CHANNEL_IDS: !Ref AllowedChannelIds
           EC2_REGION: !Ref Ec2Region
@@ -92,7 +107,9 @@ Resources:
             - Effect: Allow
               Action:
                 - ssm:GetParameter
-              Resource: !Sub 'arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter${SsmParameterPrefix}/*'
+              Resource:
+                - !Sub 'arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter${SsmParameterPrefix}/*'
+                - !Sub 'arn:aws:ssm:ap-northeast-1:${AWS::AccountId}:parameter${Uat1SsmParameterPrefix}/*'
             - Effect: Allow
               Action:
                 - ec2:DescribeInstances
