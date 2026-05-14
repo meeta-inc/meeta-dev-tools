@@ -42,6 +42,22 @@ const github = new GitHubActionsService({
   ref: process.env.GITHUB_REF || 'main',
 });
 
+// UAT1 환경용 service 인스턴스 (dev 와 동일 SupabaseService 공유)
+const ssmUat1 = new SsmService({
+  region: process.env.SSM_REGION || 'ap-northeast-1',
+  parameterPrefix: process.env.UAT1_SSM_PARAMETER_PREFIX || '/ai-bridge/uat1/env-control',
+});
+
+const githubUat1 = new GitHubActionsService({
+  token: process.env.GITHUB_TOKEN,
+  owner: process.env.GITHUB_OWNER,
+  repo: process.env.GITHUB_REPO || 'ai-bridge-infra',
+  workflowFile: process.env.UAT1_WORKFLOW_FILE || 'uat1-env-control.yml',
+  ref: process.env.GITHUB_REF || 'main',
+});
+
+const uat1ReservationsTable = process.env.UAT1_RESERVATIONS_TABLE || 'uat1_reservations';
+
 const scheduleChecker = new ScheduleChecker({
   supabaseService: supabase,
   githubService: github,
@@ -456,6 +472,246 @@ async function sendAuditLog(client, userId, action, logger) {
     logger.error('감사 로그 전송 실패 (무시됨):', error.message);
   }
 }
+
+async function sendUat1AuditLog(client, userId, action, detail, logger) {
+  if (!alertChannelId) return;
+  try {
+    const verbMap = { start: '시작', stop: '중지', reserve: '예약', cancel: '예약 취소' };
+    const verb = verbMap[action] || action;
+    await client.chat.postMessage({
+      channel: alertChannelId,
+      blocks: ui.uat1AlertMessage(userId, action, detail),
+      text: `UAT1 환경 ${verb} — by <@${userId}>`,
+    });
+  } catch (error) {
+    logger.error('UAT1 감사 로그 전송 실패 (무시됨):', error.message);
+  }
+}
+
+// ──────────────────────────────────────────
+// /uat1 슬래시 커맨드
+// ──────────────────────────────────────────
+
+const JST_BUSINESS_HOUR_LIMIT = 18; // JST 18시 이후 start 차단
+
+function nowInJst() {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    hour12: false,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date());
+  const get = (type) => parseInt(fmt.find((p) => p.type === type).value, 10);
+  return { hour: get('hour'), minute: get('minute') };
+}
+
+function isWeekdayDateString(dateStr) {
+  // YYYY-MM-DD (로컬 해석 회피 위해 UTC 자정으로 파싱)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return false;
+  const day = d.getUTCDay(); // 0=일, 1=월, ..., 6=토
+  return day >= 1 && day <= 5;
+}
+
+function parseUat1ReserveText(text) {
+  // 'reserve YYYY-MM-DD 사유...' 또는 'reserve YYYY-MM-DD'
+  const trimmed = (text || '').trim().replace(/^reserve\s+/, '');
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(.+))?$/);
+  if (!match) return { date: null, reason: null };
+  return { date: match[1], reason: match[2] || null };
+}
+
+function parseUat1CancelText(text) {
+  // 'cancel <id>' → uuid 만 추출
+  return (text || '').trim().replace(/^cancel\s+/, '').trim() || null;
+}
+
+app.command('/uat1', async ({ command, ack, respond, client, logger }) => {
+  await ack();
+
+  if (!isChannelAllowed(command.channel_id)) {
+    await respond({ response_type: 'ephemeral', text: '이 채널에서는 /uat1 커맨드를 사용할 수 없습니다.' });
+    return;
+  }
+
+  const text = (command.text || '').trim();
+  const subcommand = text.split(/\s+/)[0].toLowerCase();
+
+  try {
+    switch (subcommand) {
+      case '':
+      case 'status':
+        await handleUat1Status(respond, logger);
+        break;
+      case 'start':
+        await handleUat1Start(command, respond, client, logger);
+        break;
+      case 'stop':
+        await handleUat1Stop(command, respond, client, logger);
+        break;
+      case 'reserve':
+        await handleUat1Reserve(command, text, respond, client, logger);
+        break;
+      case 'cancel':
+        await handleUat1Cancel(command, text, respond, client, logger);
+        break;
+      case 'help':
+        await respond({ response_type: 'ephemeral', blocks: ui.uat1HelpMessage() });
+        break;
+      default:
+        await respond({ response_type: 'ephemeral', text: `알 수 없는 명령어: \`${subcommand}\`\n\`/uat1 help\`로 사용법을 확인하세요.` });
+    }
+  } catch (error) {
+    logger.error(`/uat1 ${subcommand} 처리 실패:`, error);
+    await respond({ response_type: 'ephemeral', text: `처리 중 오류가 발생했습니다: ${error.message}` });
+  }
+});
+
+// ──────────────────────────────────────────
+// /uat1 서브커맨드 핸들러
+// ──────────────────────────────────────────
+
+async function handleUat1Status(respond, logger) {
+  const [envStatus, reservations] = await Promise.all([
+    ssmUat1.getEnvStatus().catch((e) => { logger.error('UAT1 SSM 조회 실패:', e); return { status: 'unknown' }; }),
+    supabase.getActiveUat1Reservations(uat1ReservationsTable).catch((e) => { logger.error('UAT1 예약 조회 실패:', e); return []; }),
+  ]);
+
+  const blocks = ui.uat1StatusView(envStatus, reservations);
+  await respond({ response_type: 'in_channel', blocks });
+}
+
+async function handleUat1Start(command, respond, client, logger) {
+  const { hour } = nowInJst();
+  if (hour >= JST_BUSINESS_HOUR_LIMIT) {
+    await respond({
+      response_type: 'ephemeral',
+      text: `:warning: UAT1 start 는 JST 18시 이전만 가능합니다 (현재 JST ${String(hour).padStart(2, '0')}시).`,
+    });
+    return;
+  }
+
+  await githubUat1.triggerWorkflow('start');
+  await respond({ response_type: 'in_channel', blocks: ui.uat1ResultMessage('start', true) });
+  await sendUat1AuditLog(client, command.user_id, 'start', null, logger);
+}
+
+async function handleUat1Stop(command, respond, client, logger) {
+  await githubUat1.triggerWorkflow('stop');
+  await respond({ response_type: 'in_channel', blocks: ui.uat1ResultMessage('stop', true) });
+  await sendUat1AuditLog(client, command.user_id, 'stop', null, logger);
+}
+
+async function handleUat1Reserve(command, text, respond, client, logger) {
+  const { date, reason } = parseUat1ReserveText(text);
+  if (!date) {
+    await respond({
+      response_type: 'ephemeral',
+      text: '사용법: `/uat1 reserve YYYY-MM-DD [사유]` (평일만)',
+    });
+    return;
+  }
+  if (!isWeekdayDateString(date)) {
+    await respond({
+      response_type: 'ephemeral',
+      text: `:warning: UAT1 예약은 평일(월~금) 만 가능합니다 — ${date} 는 주말입니다.`,
+    });
+    return;
+  }
+
+  try {
+    await supabase.createUat1Reservation(
+      { reservation_date: date, reserved_by: command.user_id, reserved_via: 'slack', reason },
+      uat1ReservationsTable,
+    );
+    await respond({
+      response_type: 'in_channel',
+      blocks: ui.uat1ReserveResultMessage(command.user_id, date, reason, true),
+    });
+    await sendUat1AuditLog(client, command.user_id, 'reserve', date, logger);
+  } catch (error) {
+    logger.error('UAT1 예약 생성 실패:', error);
+    await respond({
+      response_type: 'ephemeral',
+      blocks: ui.uat1ReserveResultMessage(command.user_id, date, reason, false, error.message),
+    });
+  }
+}
+
+async function handleUat1Cancel(command, text, respond, client, logger) {
+  const id = parseUat1CancelText(text);
+  if (!id) {
+    await respond({
+      response_type: 'ephemeral',
+      text: '사용법: `/uat1 cancel <reservation_id>` (예약 ID 는 `/uat1 status` 에서 확인)',
+    });
+    return;
+  }
+  try {
+    await supabase.cancelUat1Reservation(id, command.user_id, uat1ReservationsTable);
+    await respond({ response_type: 'in_channel', blocks: ui.uat1ResultMessage('cancel', true) });
+    await sendUat1AuditLog(client, command.user_id, 'cancel', id, logger);
+  } catch (error) {
+    logger.error('UAT1 예약 취소 실패:', error);
+    await respond({ response_type: 'ephemeral', blocks: ui.uat1ResultMessage('cancel', false, error.message) });
+  }
+}
+
+// ──────────────────────────────────────────
+// /uat1 버튼 액션 핸들러
+// ──────────────────────────────────────────
+
+app.action('uat1_start', async ({ body, ack, respond, client, logger }) => {
+  await ack();
+  try {
+    const { hour } = nowInJst();
+    if (hour >= JST_BUSINESS_HOUR_LIMIT) {
+      await respond({
+        response_type: 'ephemeral',
+        replace_original: false,
+        text: `:warning: UAT1 start 는 JST 18시 이전만 가능합니다 (현재 JST ${String(hour).padStart(2, '0')}시).`,
+      });
+      return;
+    }
+    await githubUat1.triggerWorkflow('start');
+    await respond({ response_type: 'in_channel', replace_original: false, blocks: ui.uat1ResultMessage('start', true) });
+    await sendUat1AuditLog(client, body.user.id, 'start', null, logger);
+  } catch (error) {
+    logger.error('UAT1 시작 실패:', error);
+    await respond({ response_type: 'in_channel', replace_original: false, blocks: ui.uat1ResultMessage('start', false, error.message) });
+  }
+});
+
+app.action('uat1_stop', async ({ body, ack, respond, client, logger }) => {
+  await ack();
+  try {
+    await githubUat1.triggerWorkflow('stop');
+    await respond({ response_type: 'in_channel', replace_original: false, blocks: ui.uat1ResultMessage('stop', true) });
+    await sendUat1AuditLog(client, body.user.id, 'stop', null, logger);
+  } catch (error) {
+    logger.error('UAT1 중지 실패:', error);
+    await respond({ response_type: 'in_channel', replace_original: false, blocks: ui.uat1ResultMessage('stop', false, error.message) });
+  }
+});
+
+app.action('uat1_refresh', async ({ ack, respond, logger }) => {
+  await ack();
+  await handleUat1Status(respond, logger);
+});
+
+app.action(/^uat1_cancel_(.+)$/, async ({ action, body, ack, respond, client, logger }) => {
+  await ack();
+  const reservationId = action.action_id.replace('uat1_cancel_', '');
+  try {
+    await supabase.cancelUat1Reservation(reservationId, body.user.id, uat1ReservationsTable);
+    await respond({ response_type: 'ephemeral', replace_original: false, blocks: ui.uat1ResultMessage('cancel', true) });
+    await sendUat1AuditLog(client, body.user.id, 'cancel', reservationId, logger);
+  } catch (error) {
+    logger.error('UAT1 예약 취소 실패:', error);
+    await respond({ response_type: 'ephemeral', replace_original: false, blocks: ui.uat1ResultMessage('cancel', false, error.message) });
+  }
+});
 
 // ──────────────────────────────────────────
 // 글로벌 에러 핸들러

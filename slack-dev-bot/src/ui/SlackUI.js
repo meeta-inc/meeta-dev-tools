@@ -560,6 +560,110 @@ class SlackUI {
   }
 
   // ──────────────────────────────────────────
+  // /uat1 (UAT1 환경 관리)
+  // ──────────────────────────────────────────
+
+  uat1HelpMessage() {
+    return [
+      { type: 'header', text: { type: 'plain_text', text: 'UAT1 환경 관리 — /uat1' } },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: [
+            '*사용 가능한 명령:*',
+            '• `/uat1` 또는 `/uat1 status` — 현재 상태 + 활성 예약 조회',
+            '• `/uat1 start` — 환경 시작 (평일 18:00 JST 이전만)',
+            '• `/uat1 stop` — 환경 중지',
+            '• `/uat1 reserve YYYY-MM-DD [사유]` — 예약 생성 (평일, 1일 1건)',
+            '• `/uat1 cancel <reservation_id>` — 예약 취소',
+            '• `/uat1 help` — 이 메시지',
+            '',
+            ':warning: UAT1 제약 — 평일(월~금)만 예약 가능, JST 18시 이후 start 차단, 1일 1 active 예약',
+          ].join('\n'),
+        },
+      },
+    ];
+  }
+
+  uat1StatusView(envStatus, reservations) {
+    const statusEmoji = { running: ':large_green_circle:', stopped: ':red_circle:', starting: ':large_yellow_circle:', stopping: ':large_yellow_circle:', unknown: ':grey_question:' };
+    const emoji = statusEmoji[envStatus.status] || ':grey_question:';
+
+    const blocks = [
+      { type: 'header', text: { type: 'plain_text', text: 'UAT1 환경 상태' } },
+      {
+        type: 'section',
+        fields: [
+          { type: 'mrkdwn', text: `*상태:* ${emoji} \`${envStatus.status}\`` },
+          { type: 'mrkdwn', text: `*마지막 액션:* ${envStatus.lastAction || 'N/A'}` },
+          { type: 'mrkdwn', text: `*시각:* ${this._formatTime(envStatus.lastActionTime)}` },
+          { type: 'mrkdwn', text: `*실행자:* ${envStatus.lastActionBy ? `<@${envStatus.lastActionBy}>` : 'N/A'}` },
+        ],
+      },
+      {
+        type: 'actions',
+        elements: [
+          { type: 'button', text: { type: 'plain_text', text: '시작' }, style: 'primary', action_id: 'uat1_start', confirm: { title: { type: 'plain_text', text: 'UAT1 시작' }, text: { type: 'plain_text', text: '환경을 시작하시겠습니까?' }, confirm: { type: 'plain_text', text: '확인' }, deny: { type: 'plain_text', text: '취소' } } },
+          { type: 'button', text: { type: 'plain_text', text: '중지' }, style: 'danger', action_id: 'uat1_stop', confirm: { title: { type: 'plain_text', text: 'UAT1 중지' }, text: { type: 'plain_text', text: '환경을 중지하시겠습니까?' }, confirm: { type: 'plain_text', text: '확인' }, deny: { type: 'plain_text', text: '취소' } } },
+          { type: 'button', text: { type: 'plain_text', text: '새로고침' }, action_id: 'uat1_refresh' },
+        ],
+      },
+      { type: 'divider' },
+    ];
+
+    if (reservations.length > 0) {
+      blocks.push({ type: 'section', text: { type: 'mrkdwn', text: `*활성 예약 (${reservations.length}건):*` } });
+      reservations.forEach((r) => {
+        blocks.push({
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: [
+              `*${r.reservation_date}* — by <@${r.reserved_by}>`,
+              r.reason ? `사유: ${r.reason}` : '',
+              `\`${r.id}\``,
+            ].filter(Boolean).join('\n'),
+          },
+          accessory: { type: 'button', text: { type: 'plain_text', text: '취소' }, style: 'danger', action_id: `uat1_cancel_${r.id}`, value: r.id },
+        });
+      });
+    } else {
+      blocks.push({ type: 'section', text: { type: 'mrkdwn', text: '_활성 예약 없음_' } });
+    }
+
+    return blocks;
+  }
+
+  uat1ResultMessage(action, success, error = null) {
+    const verbMap = { start: '시작', stop: '중지', reserve: '예약', cancel: '예약 취소' };
+    const verb = verbMap[action] || action;
+    if (success) {
+      return [{ type: 'section', text: { type: 'mrkdwn', text: `:white_check_mark: UAT1 환경 ${verb} 요청 완료` } }];
+    }
+    return [{ type: 'section', text: { type: 'mrkdwn', text: `:x: UAT1 환경 ${verb} 실패\n\`\`\`${error || '알 수 없는 오류'}\`\`\`` } }];
+  }
+
+  uat1AlertMessage(userId, action, detail = null) {
+    const verbMap = { start: '시작', stop: '중지', reserve: '예약', cancel: '예약 취소' };
+    const verb = verbMap[action] || action;
+    const tail = detail ? ` (${detail})` : '';
+    return [{ type: 'section', text: { type: 'mrkdwn', text: `:memo: <@${userId}>님이 UAT1 환경을 ${verb}했습니다${tail}.` } }];
+  }
+
+  uat1ReserveResultMessage(userId, reservationDate, reason, success, error = null) {
+    if (success) {
+      const text = [
+        `:white_check_mark: <@${userId}>님이 UAT1 예약을 생성했습니다.`,
+        `날짜: *${reservationDate}*`,
+        reason ? `사유: ${reason}` : '',
+      ].filter(Boolean).join('\n');
+      return [{ type: 'section', text: { type: 'mrkdwn', text } }];
+    }
+    return [{ type: 'section', text: { type: 'mrkdwn', text: `:x: UAT1 예약 생성 실패\n\`\`\`${error || '알 수 없는 오류'}\`\`\`` } }];
+  }
+
+  // ──────────────────────────────────────────
   // 내부 헬퍼
   // ──────────────────────────────────────────
 
