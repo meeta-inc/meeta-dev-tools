@@ -1,0 +1,18 @@
+# 비밀/환경
+.env
+
+# 입출력 데이터(실제 엑셀·생성물은 형상관리 대상 아님)
+input/
+output/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
